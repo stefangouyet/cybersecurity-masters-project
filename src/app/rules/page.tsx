@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import styles from './rules.module.css';
-import GuiView from '../components/guiView';
-import CodeView from '../components/codeView';
-import Explanation from '../components/explanation';
+import GuiView from '../components/GuiView';
+import CodeView from '../components/CodeView';
+import Explanation from '../components/Explanation';
 
 const functions = [
   { name: 'isAuthor', description: 'Checks if the user ID matches the document owner ID.' },
@@ -17,23 +17,17 @@ const functions = [
 const types = ['string', 'number', 'boolean', 'timestamp', 'array', 'map'];
 
 export default function RulesGUI() {
-  const [view, setView] = useState<'gui' | 'code'>('gui'); // Default to GUI view for side-by-side
+  const [view, setView] = useState<'gui' | 'code'>('gui');
   const [mode, setMode] = useState<'auth' | 'types'>('auth');
   const [rulesCode, setRulesCode] = useState('');
   const [explanation, setExplanation] = useState('');
   const [error, setError] = useState('');
   const [pastedRules, setPastedRules] = useState('');
-  const [selectedCollectionDoc, setSelectedCollectionDoc] = useState<{ collection: string; docId: string }>({ collection: 'users', docId: '{usersId}' });
+  const [selectedPath, setSelectedPath] = useState<string>('');
 
   const [allowRules, setAllowRules] = useState<{ collection: string; docId: string; action: string; condition: string }[]>([]);
   const [fieldTypes, setFieldTypes] = useState<{ collection: string; docId: string; field: string; type: string }[]>([]);
-
-  const collectionDocOptions = [
-    { collection: 'users', docId: '{usersId}' },
-    { collection: 'members', docId: '{membersId}' },
-    { collection: 'families', docId: '{familiesId}' },
-    { collection: 'chats', docId: '{chatsId}' },
-  ];
+  const [collectionDocOptions, setCollectionDocOptions] = useState<{ path: string; color: string }[]>([]);
 
   useEffect(() => {
     const storedRules = localStorage.getItem('generatedRules');
@@ -44,33 +38,48 @@ export default function RulesGUI() {
     if (storedRules) {
       setRulesCode(storedRules);
       setExplanation(storedExplanation);
-      const { allowRules: parsedAllowRules, fieldTypes: parsedFieldTypes } = parseRulesFromCode(storedRules);
+      const { allowRules: parsedAllowRules, fieldTypes: parsedFieldTypes, paths } = parseRulesFromCode(storedRules);
       console.log('[DEBUG] Parsed Allow Rules:', parsedAllowRules);
       console.log('[DEBUG] Parsed Field Types:', parsedFieldTypes);
+      console.log('[DEBUG] Parsed Paths:', paths);
       setAllowRules(parsedAllowRules.map(rule => ({ ...rule, docId: rule.docId || `{${rule.collection}Id}` })));
       setFieldTypes(parsedFieldTypes.map(field => ({ ...field, docId: field.docId || `{${field.collection}Id}` })));
+      setCollectionDocOptions(paths);
+      setSelectedPath(paths.length > 0 ? paths[0].path : '');
     } else {
       console.warn('[DEBUG] No rules in localStorage on initial load');
       setRulesCode('// No rules generated yet. Submit Firestore code on the previous page.');
       setExplanation('No explanation available. Generate rules first.');
       setAllowRules([]);
       setFieldTypes([]);
+      setCollectionDocOptions([]);
+      setSelectedPath('');
     }
   }, []);
 
   const parseRulesFromCode = (code: string) => {
     const allowRules: { collection: string; docId: string; action: string; condition: string }[] = [];
     const fieldTypes: { collection: string; docId: string; field: string; type: string }[] = [];
+    const paths: { path: string; color: string }[] = [];
     const lines = code.split('\n').map(line => line.trim());
     let currentCollection = '';
     let currentDocId = '';
+    let currentPath = '';
 
     for (let line of lines) {
       if (line.startsWith('match /')) {
-        const match = line.match(/match \/(\w+)\/\{([^}]+)}/);
+        const match = line.match(/match \/([^\/]+)\/\{([^}]+)}/);
         if (match) {
           currentCollection = match[1];
           currentDocId = match[2];
+          const prevLine = lines[lines.indexOf(line) - 1];
+          currentPath = prevLine?.startsWith('match /') ? `${prevLine.split('/')[1]}/${currentCollection}/{${currentDocId}}` : `/${currentCollection}/{${currentDocId}}`;
+          if (!paths.some(p => p.path === currentPath)) {
+            paths.push({
+              path: currentPath,
+              color: prevLine?.startsWith('match /') ? '#ffe6e6' : '#e6f3ff', // Light red for subcollections, light blue for top-level
+            });
+          }
         }
       } else if (line.startsWith('allow')) {
         const match = line.match(/allow\s+([\w,\s]+):\s*if\s+(.+);/);
@@ -94,7 +103,7 @@ export default function RulesGUI() {
         });
       }
     }
-    return { allowRules, fieldTypes };
+    return { allowRules, fieldTypes, paths };
   };
 
   const generateCode = () => {
@@ -138,54 +147,90 @@ export default function RulesGUI() {
     if (newRules) {
       setRulesCode(newRules);
       localStorage.setItem('generatedRules', newRules);
-      const { allowRules: parsedAllowRules, fieldTypes: parsedFieldTypes } = parseRulesFromCode(newRules);
+      const { allowRules: parsedAllowRules, fieldTypes: parsedFieldTypes, paths } = parseRulesFromCode(newRules);
       setAllowRules(parsedAllowRules.map(rule => ({ ...rule, docId: rule.docId || `{${rule.collection}Id}` })));
       setFieldTypes(parsedFieldTypes.map(field => ({ ...field, docId: field.docId || `{${field.collection}Id}` })));
+      setCollectionDocOptions(paths);
+      setSelectedPath(paths.length > 0 ? paths[0].path : '');
     } else {
       setError('Please paste valid rules.');
     }
   };
 
-  const addAllowRule = () => setAllowRules([...allowRules, { collection: selectedCollectionDoc.collection, docId: selectedCollectionDoc.docId, action: 'read', condition: 'isAuthenticated' }]);
-  const removeAllowRule = (i: number) => setAllowRules(allowRules.filter((_, idx) => idx !== i));
-  const updateAllowRule = (i: number, key: string, value: string) => {
-    const updated = [...allowRules];
-    updated[i][key] = value;
-    setAllowRules(updated);
+  const addAllowRule = () => {
+    const [collection] = selectedPath.split('/').filter(Boolean);
+    const docId = selectedPath.split('/').pop() || `{${collection}Id}`;
+    setAllowRules([...allowRules, { collection, docId, action: 'read', condition: 'isAuthenticated' }]);
+    generateCode();
   };
 
-  const addFieldType = () => setFieldTypes([...fieldTypes, { collection: selectedCollectionDoc.collection, docId: selectedCollectionDoc.docId, field: '', type: 'string' }]);
-  const removeFieldType = (i: number) => setFieldTypes(fieldTypes.filter((_, idx) => idx !== i));
+  const removeAllowRule = (i: number) => {
+    setAllowRules(allowRules.filter((_, idx) => idx !== i));
+    generateCode();
+  };
+
+  const updateAllowRule = (i: number, key: string, value: string) => {
+    const updated = [...allowRules];
+    if (key === 'action' && value !== allowRules[i].action) {
+      updated[i][key] = value;
+    } else if (key !== 'action') {
+      updated[i][key] = value;
+    }
+    setAllowRules(updated);
+    generateCode();
+  };
+
+  const addFieldType = () => {
+    const [collection] = selectedPath.split('/').filter(Boolean);
+    const docId = selectedPath.split('/').pop() || `{${collection}Id}`;
+    setFieldTypes([...fieldTypes, { collection, docId, field: '', type: 'string' }]);
+    generateCode();
+  };
+
+  const removeFieldType = (i: number) => {
+    setFieldTypes(fieldTypes.filter((_, idx) => idx !== i));
+    generateCode();
+  };
+
   const updateFieldType = (i: number, key: string, value: string) => {
     const updated = [...fieldTypes];
     updated[i][key] = value;
     setFieldTypes(updated);
+    generateCode();
   };
 
   return (
     <div className={styles.wrapper}>
+      <div className={styles.header}>
+        <h1>Firestore Rules Builder</h1>
+        <div>
+          <button className={styles.toggle} onClick={() => setView(view === 'gui' ? 'code' : 'gui')}>
+            {view === 'gui' ? 'Code View' : 'GUI View'}
+          </button>
+          <button className={styles.toggle} onClick={() => setMode(mode === 'auth' ? 'types' : 'auth')}>
+            {mode === 'auth' ? 'Switch to Field Types' : 'Switch to Auth Rules'}
+          </button>
+        </div>
+      </div>
       <div className={styles.container}>
         <div className={styles.leftPanel}>
           <div className={styles.dropdownContainer}>
             <select
-              value={`${selectedCollectionDoc.collection}/${selectedCollectionDoc.docId}`}
-              onChange={(e) => {
-                const [collection, docId] = e.target.value.split('/');
-                setSelectedCollectionDoc({ collection, docId });
-              }}
+              value={selectedPath}
+              onChange={(e) => setSelectedPath(e.target.value)}
               className={styles.dropdown}
             >
               {collectionDocOptions.map(option => (
-                <option key={`${option.collection}/${option.docId}`} value={`${option.collection}/${option.docId}`}>
-                  {option.collection}/{option.docId}
+                <option key={option.path} value={option.path} style={{ backgroundColor: option.color }}>
+                  {option.path}
                 </option>
               ))}
             </select>
           </div>
           <GuiView
             mode={mode}
-            allowRules={allowRules.filter(rule => rule.collection === selectedCollectionDoc.collection && rule.docId === selectedCollectionDoc.docId)}
-            fieldTypes={fieldTypes.filter(field => field.collection === selectedCollectionDoc.collection && field.docId === selectedCollectionDoc.docId)}
+            allowRules={allowRules.filter(rule => `/${rule.collection}/${rule.docId}` === selectedPath)}
+            fieldTypes={fieldTypes.filter(field => `/${field.collection}/${field.docId}` === selectedPath)}
             addAllowRule={addAllowRule}
             removeAllowRule={removeAllowRule}
             updateAllowRule={updateAllowRule}
@@ -204,16 +249,9 @@ export default function RulesGUI() {
             setPastedRules={setPastedRules}
             handlePasteRules={handlePasteRules}
           />
-          <Explanation explanation={explanation} />
         </div>
       </div>
+      <Explanation explanation={explanation} />
     </div>
   );
 }
-
-const collectionDocOptions = [
-  { collection: 'users', docId: '{usersId}' },
-  { collection: 'members', docId: '{membersId}' },
-  { collection: 'families', docId: '{familiesId}' },
-  { collection: 'chats', docId: '{chatsId}' },
-];

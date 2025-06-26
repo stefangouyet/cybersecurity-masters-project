@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: 'You are a cybersecurity expert helping generate secure Firestore security rules.',
+            content: 'You are a cybersecurity expert helping generate secure Firestore security rules. Ensure rules include both "create" and "update" permissions for all collections and subcollections mentioned in the provided Firestore code.',
           },
           {
             role: 'user',
-            content: `Here is some Firestore client-side code:\n\n${firestoreCode}\n\nPlease output only a Firestore security rules file that starts with \`rules_version = '2';\` and contains no explanation.`,
+            content: `Here is some Firestore client-side code:\n\n${firestoreCode}\n\nPlease output:\n\n1. An explanation of the security concerns and protections.\n2. A complete Firestore security rules file that starts with \`rules_version = '2';\` and includes "create" and "update" rules for all collections and subcollections referenced in the code.`,
           },
         ],
       }),
@@ -44,14 +44,20 @@ export async function POST(req: NextRequest) {
     const data = await openaiRes.json();
     const fullContent = data.choices?.[0]?.message?.content || '';
 
-    // Return only the rules block
-    let rules = fullContent.trim();
+    let rules = '';
+    let explanation = fullContent;
 
-    // Remove any leading/trailing code block markers if present
-    if (rules.startsWith('```')) rules = rules.replace(/^```(?:javascript)?\s*/, '').trim();
-    if (rules.endsWith('```')) rules = rules.replace(/\s*```$/, '').trim();
+    const ruleStart = fullContent.indexOf("rules_version = '2';");
+    if (ruleStart !== -1) {
+      rules = fullContent.slice(ruleStart).trim();
+      explanation = fullContent.slice(0, ruleStart).trim();
 
-    return NextResponse.json({ rules });
+      // Remove trailing code block markers
+      if (rules.endsWith('```')) rules = rules.replace(/```$/, '').trim();
+      if (rules.startsWith('```')) rules = rules.replace(/^```(?:javascript)?\s*/, '').trim();
+    }
+
+    return NextResponse.json({ rules, explanation });
   } catch (err) {
     console.error('[API ERROR]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
