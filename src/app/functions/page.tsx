@@ -4,39 +4,14 @@ import styles from './functions.module.css';
 
 const functions = [
     {
-        name: 'isAuthor',
-        description: 'Checks if the user ID matches the document owner ID.',
-        code: `function isAuthor() {
-  return request.auth != null && request.auth.uid == resource.data.authorId;
-}`,
-    },
-    {
-        name: 'isAdmin',
-        description: 'Checks if the user has an admin claim.',
-        code: `function isAdmin() {
-  return request.auth.token.admin == true;
-}`,
-    },
-    {
         name: 'isOwner',
-        description: 'Checks if the user owns the parent document.',
-        code: `function isOwner() {
-  return request.auth != null && request.auth.uid == resource.data.ownerId;
-}`,
+        description: 'Checks if the user ID matches the document owner ID.',
+        code: `function isOwner(userId) {\n  return request.auth.uid == userId;\n}`,
     },
     {
         name: 'isAuthenticated',
         description: 'Checks if the user is authenticated.',
-        code: `function isAuthenticated() {
-  return request.auth != null;
-}`,
-    },
-    {
-        name: 'isModerator',
-        description: 'Checks if the user has a moderator role.',
-        code: `function isModerator() {
-  return request.auth.token.role == 'moderator';
-}`,
+        code: `function isAuthenticated() {\n  return request.auth != null;\n}`,
     },
 ];
 

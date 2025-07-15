@@ -47,3 +47,9 @@
     white-space: pre-wrap;
     margin-bottom: 10px;
 }
+
+.highlight {
+    background-color: #cce4ff;
+    font-weight: bold;
+    color: #222;
+}
