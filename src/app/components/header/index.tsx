@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import './../../globals.css';
 
-export default function Navbar() {
+export default function Header() {
     const pathname = usePathname();
 
     return (

@@ -1,7 +1,7 @@
 import { Providers } from "@/store/providers";
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "./components/navBar/index";
+import Header from "./components/header";
 
 export const metadata: Metadata = {
   title: "Firestore Rules Toolkit",
@@ -17,7 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <Providers>
         <body>
-          <Navbar />
+          <Header />
           <main style={{ padding: '2rem' }}>{children}</main>
         </body>
       </Providers>
