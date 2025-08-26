@@ -4,7 +4,7 @@ import { AddCircleOutlineOutlined } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Tooltip } from '@mui/material';
 import { useEffect, useState } from 'react';
 import CodeView from '../components/codeView';
-import CustomFunctions from '../components/customfunctions';
+import CustomFunctions from '../components/custom';
 import Explanation from '../components/explanation';
 import GuiView from '../components/guiView';
 import styles from './rules.module.css';
