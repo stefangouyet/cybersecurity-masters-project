@@ -7,8 +7,6 @@ interface CodeViewProps {
   selectedPath: string;
 }
 
-const DEBUG = true;
-
 export default function CodeView({
   rulesState,
   error,

@@ -1,7 +1,7 @@
 import { Providers } from "@/store/providers";
 import type { Metadata } from "next";
-import Navbar from "@/app/components/navBar";
 import "./globals.css";
+import Navbar from "./components/navBar";
 
 export const metadata: Metadata = {
   title: "Firestore Rules Toolkit",
