@@ -1,186 +1,133 @@
 'use client';
-
-import { useEffect, useState } from 'react';
 import { useAppSelector } from '@/store/hooks';
-import GuiView from '../components/GuiView';
+import { AddCircleOutlineOutlined } from '@mui/icons-material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Tooltip } from '@mui/material';
+import { useEffect, useState } from 'react';
 import CodeView from '../components/CodeView';
-import styles from './rules.module.css';
+import CustomFunctions from '../components/CustomFunctions';
 import Explanation from '../components/Explanation';
+import GuiView from '../components/GuiView';
+import styles from './rules.module.css';
 
 const functions = [
   { name: 'isOwner', description: 'Checks if the user ID matches the document owner ID.' },
   { name: 'isAuthenticated', description: 'Checks if the user is authenticated.' },
 ];
-
 const types = ['string', 'number', 'boolean', 'timestamp', 'array', 'map'];
-
-const READ_METHODS = ['get', 'list'];
-const WRITE_METHODS = ['create', 'update', 'delete'];
 
 export default function RulesPage() {
   const { generatedRules, rulesExplanation } = useAppSelector(state => state.reducer.rules);
+  const { useCustomFunctions, selectedFunctions } = useAppSelector(state => state.reducer.settings);
 
   const [allRules, setAllRules] = useState<Record<string, { method: string[]; condition: string }[]>>({});
   const [selectedPath, setSelectedPath] = useState('');
   const [paths, setPaths] = useState<string[]>([]);
-  const [codePreview, setCodePreview] = useState('');
-  const [explanation, setExplanation] = useState('');
+  const [rulesState, setRulesState] = useState('');
+  const [addPathDialogOpen, setAddPathDialogOpen] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [newDocWildcard, setNewDocWildcard] = useState('');
 
-  // Parse rules from raw Firestore rules string
   const parseFirestoreRules = (rules: string) => {
-    const pathRegex = /^\s*match\s+([^\s{]+)\s*\{/;
+    const pathRegex = /^\s*match\s+\/?(\/?[^\s{]+(\s*{[^}]+})?)\s*\{/;
     const allowRegex = /^\s*allow\s+([a-z,\s]+):\s*if\s+(.+);/;
     const lines = rules.split('\n');
-
     const parsed: Record<string, { method: string[]; condition: string }[]> = {};
     const pathStack: string[] = [];
-    let currentFullPath = '';
-
     lines.forEach(line => {
       const trimmedLine = line.trim();
-
       if (trimmedLine.startsWith('match')) {
         const match = trimmedLine.match(pathRegex);
         if (match) {
-          pathStack.push(match[1]);
-          currentFullPath = '/' + pathStack.join('/').replace(/\/+/g, '/').replace(/^\/+/, '');
+          pathStack.push(match[1]); // Capture full path including {userId}
         }
       } else if (trimmedLine.startsWith('allow')) {
         const allow = trimmedLine.match(allowRegex);
-        if (allow) {
+        if (allow && pathStack.length > 0) {
           const rawMethods = allow[1].split(',').map(m => m.trim());
           const condition = allow[2].trim();
-
-          if (!parsed[currentFullPath]) parsed[currentFullPath] = [];
-          parsed[currentFullPath].push({ method: Array.from(new Set(rawMethods)), condition });
+          let fullPath = '/' + pathStack.join('/').replace(/\/+/g, '/');
+          fullPath = fullPath.replace(/^\/?databases\/\{database\}\/documents/, ''); // Remove Firestore base prefix
+          fullPath = fullPath.replace(/\/+$/, '').replace(/^\/+/, '');
+          const cleanPath = fullPath
+            .replace(/^databases\//, '')
+            .replace(/^\/+/, '')
+            .replace(/\/+$/, '');
+          if (!parsed[cleanPath]) parsed[cleanPath] = [];
+          parsed[cleanPath].push({ method: Array.from(new Set(rawMethods)), condition });
         }
       } else if (trimmedLine.startsWith('}')) {
         pathStack.pop();
-        currentFullPath = '/' + pathStack.join('/').replace(/\/+/g, '/').replace(/^\/+/, '');
       }
     });
-
     return parsed;
   };
 
-
-
   function buildNestedRuleTree(rulesObj: Record<string, { method: string[]; condition: string }[]>) {
     const tree: any = {};
-
     for (const fullPath in rulesObj) {
-      // remove /databases/{database}/documents prefix
       const relativePath = fullPath.replace(/^\/?databases\/\{database\}\/documents/, '').replace(/^\/+/, '');
       const segments = relativePath.split('/').filter(Boolean);
-
       let current = tree;
-
       for (let i = 0; i < segments.length; i++) {
         const segment = segments[i];
-
         if (!current[segment]) {
           current[segment] = { __rules: [], __children: {} };
         }
-
         if (i === segments.length - 1) {
-          current[segment].__rules = rulesObj[fullPath];
+          current[segment].__rules = [...(current[segment].__rules || []), ...rulesObj[fullPath]];
         }
-
         current = current[segment].__children;
       }
     }
-
     return tree;
   }
+  const generateRulesCode = (tree: any, indentLevel: number = 2): string => {
+    let code = '';
+    const indent = '  '.repeat(indentLevel); // indent for match line
+    const ruleIndent = '  '.repeat(indentLevel + 1); // indent for rules inside match
 
-  function generateRulesString(rulesObj: Record<string, { method: string[]; condition: string }[]>) {
-    const tree = buildNestedRuleTree(rulesObj);
+    for (const segment in tree) {
+      const node = tree[segment];
+      const childSegments = Object.keys(node.__children);
+      let matchLine = `${indent}match /${segment}`;
+      let innerTree = node.__children;
+      let rulesToAdd = node.__rules;
 
-    const renderTree = (node: any, path: string = '', indent: string = '    '): string => {
-      let output = '';
-
-      for (const [segment, data] of Object.entries(node)) {
-        const currentPath = path ? `${path}/${segment}` : `/${segment}`;
-        output += `${indent}match ${currentPath} {\n`;
-
-        const grouped: Record<string, Set<string>> = {};
-
-        for (const { method, condition } of data.__rules || []) {
-          if (!grouped[condition]) grouped[condition] = new Set();
-          method.forEach(m => grouped[condition].add(m));
-        }
-
-        for (const [condition, methodsSet] of Object.entries(grouped)) {
-          const methods = Array.from(methodsSet).sort();
-          let label = methods.join(', ');
-
-          if (READ_METHODS.every(m => methods.includes(m)) && methods.length === 2) label = 'read';
-          if (WRITE_METHODS.every(m => methods.includes(m)) && methods.length === 3) label = 'write';
-
-          output += `${indent}  allow ${label}: if ${condition};\n`;
-        }
-
-        output += renderTree(data.__children, '', indent + '  ');
-        output += `${indent}}\n`;
+      // Handle wildcards like {docId}
+      if (childSegments.length === 1 && childSegments[0].startsWith('{')) {
+        const wildcard = childSegments[0];
+        matchLine += `/${wildcard}`;
+        const wildcardNode = node.__children[wildcard];
+        innerTree = wildcardNode.__children;
+        rulesToAdd = wildcardNode.__rules;
       }
 
-      return output;
-    };
+      code += `${matchLine} {\n`;
 
-    let output = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n`;
-    output += renderTree(tree, '', '    ');
-    output += `  }\n}`;
-
-    return output;
-  }
-
-
-  useEffect(() => {
-    if (generatedRules) {
-      // const start = generatedRules.indexOf("rules_version = '2';");
-      // const end = generatedRules.lastIndexOf('}');
-      // const body = generatedRules.slice(start, end + 1);
-
-      // const cleaned = body.split('\n').filter(line => !line.trim().startsWith('//')).join('\n');
-      const start = generatedRules.indexOf("rules_version = '2';");
-      let body = '';
-
-      if (start !== -1) {
-        const afterStart = generatedRules.slice(start);
-        const lastBrace = afterStart.lastIndexOf('}');
-        body = lastBrace !== -1 ? afterStart.slice(0, lastBrace + 1) : afterStart;
+      // Rules
+      for (const rule of rulesToAdd) {
+        const methods = rule.method.join(', ');
+        code += `${ruleIndent}allow ${methods}: if ${rule.condition};\n`;
       }
 
+      // Recurse into children
+      if (Object.keys(innerTree).length > 0) {
+        code += generateRulesCode(innerTree, indentLevel + 1);
+      }
 
-      const cleaned = body
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('//') && !line.startsWith('```'))
-        .join('\n');
-
-      const parsed = parseFirestoreRules(cleaned);
-      console.log('[DEBUG] Cleaned Rules Block:', cleaned);
-
-
-      // const rulePaths = Object.keys(parsed).filter(p => !p.startsWith('/databases/'));
-      const rulePaths = Object.keys(parsed);
-      setAllRules(parsed);
-      setPaths(rulePaths);
-      setSelectedPath(rulePaths[0] || '');
-      setCodePreview(generateRulesString(parsed));
+      code += `${indent}}\n`;
     }
-  }, [generatedRules]);
 
-  const updateAllowRule = (index: number, key: string, value: string | string[]) => {
+    return code;
+  };
+
+  const updateAllowRule = (index: number, key: string, value: any) => {
     setAllRules(prev => {
       const updated = { ...prev };
       if (!updated[selectedPath]) return updated;
-
-      const next = updated[selectedPath].map((rule, i) =>
+      updated[selectedPath] = updated[selectedPath].map((rule, i) =>
         i === index ? { ...rule, [key]: value } : rule
       );
-
-      updated[selectedPath] = next;
       return updated;
     });
   };
@@ -189,7 +136,7 @@ export default function RulesPage() {
     if (!selectedPath) return;
     setAllRules(prev => ({
       ...prev,
-      [selectedPath]: [...(prev[selectedPath] || []), { method: ['get', 'list'], condition: '' }],
+      [selectedPath]: [...(prev[selectedPath] || []), { method: ['read'], condition: '' }],
     }));
   };
 
@@ -202,37 +149,205 @@ export default function RulesPage() {
     });
   };
 
+
+  const handleAddPath = () => {
+    if (newCollectionName && newDocWildcard) {
+      let formattedWildcard = newDocWildcard;
+      if (!formattedWildcard.startsWith('{') || !formattedWildcard.endsWith('}')) {
+        formattedWildcard = `{${formattedWildcard.replace('*', 'docId').replace(/^{|}$/g, '')}}`;
+      }
+      const newPath = `${newCollectionName}/${formattedWildcard}`;
+      if (!paths.includes(newPath)) {
+        setPaths([...paths, newPath]);
+        setSelectedPath(newPath);
+        setAllRules(prev => ({
+          ...prev,
+          [newPath]: [],
+        }));
+        setAddPathDialogOpen(false);
+        setNewCollectionName('');
+        setNewDocWildcard('');
+      }
+    }
+  };
+
+
+  const TOGGLEABLE_FUNCTIONS = ['isAuthenticated', 'isDocOwner', 'isAdmin', 'isActiveUser'] as const;
+  type ToggleableFn = typeof TOGGLEABLE_FUNCTIONS[number];
+
+  function customFnSnippet(name: ToggleableFn) {
+    switch (name) {
+      case 'isAuthenticated':
+        return '    function isAuthenticated() {\n      return request.auth != null;\n    }';
+      case 'isDocOwner':
+        return '    function isDocOwner(userId) {\n      return request.auth.uid == userId;\n    }';
+      case 'isAdmin':
+        return '    function isAdmin() {\n      return request.auth.token.admin === true;\n    }';
+      case 'isActiveUser':
+        return '    function isActiveUser() {\n      return request.auth.token.active === true;\n    }';
+    }
+  }
+
+  // Use Effect #1
   useEffect(() => {
-    setCodePreview(generateRulesString(allRules));
-  }, [allRules]);
+    if (generatedRules) {
+      const start = generatedRules.indexOf("rules_version = '2';");
+      let body = '';
+      if (start !== -1) {
+        const afterStart = generatedRules.slice(start);
+        const lastBrace = afterStart.lastIndexOf('}');
+        body = lastBrace !== -1 ? afterStart.slice(0, lastBrace + 1) : afterStart;
+      }
+      const cleaned = body
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('//') && !line.startsWith('```'))
+        .join('\n');
+      const parsed = parseFirestoreRules(cleaned);
+      setAllRules(parsed);
+      const cleanPaths = Object.keys(parsed).map(p =>
+        p
+          .replace(/^\/?databases\/\{database\}\/documents/, '')
+          .replace(/^databases\//, '')
+          .replace(/^\/+/, '')
+          .replace(/\/+$/, '')
+      );
+      setPaths(cleanPaths);
+      setSelectedPath(cleanPaths[0] || '');
+      setRulesState(generatedRules);
+    }
+  }, [generatedRules]);
 
 
-  console.log('generatedRules', generatedRules, allRules)
+
+
+  // Use Effect #2
+  useEffect(() => {
+    if (Object.keys(allRules).length === 0) return;
+
+    const tree = buildNestedRuleTree(allRules);
+    const matchesCode = generateRulesCode(tree).trim();
+
+    // —— Extract function definitions from the original OpenAI rules
+    const fnRegex = /function\s+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{[\s\S]*?\}/g;
+    const openAiFns: { name: string; body: string }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = fnRegex.exec(generatedRules)) !== null) {
+      openAiFns.push({ name: m[1], body: m[0] });
+    }
+
+    // Index by name for quick lookup
+    const openAiByName = new Map(openAiFns.map(f => [f.name, f.body]));
+
+    // Always keep functions that are NOT toggleable (we never hide unknown helpers)
+    const finalBodies: string[] = [];
+    const added = new Set<string>();
+    for (const f of openAiFns) {
+      if (!TOGGLEABLE_FUNCTIONS.includes(f.name as ToggleableFn)) {
+        finalBodies.push(f.body);
+        added.add(f.name);
+      }
+    }
+
+    // Handle toggleable functions strictly by the toggle state
+    if (useCustomFunctions) {
+      (TOGGLEABLE_FUNCTIONS as readonly string[]).forEach((name) => {
+        const selected = selectedFunctions?.includes(name);
+        if (!selected) return; // if toggled off, exclude even if OpenAI provided it
+
+        // Prefer OpenAI's implementation if it exists; otherwise inject our snippet
+        const body = openAiByName.get(name) ?? customFnSnippet(name as ToggleableFn);
+        if (body && !added.has(name)) {
+          finalBodies.push(body);
+          added.add(name);
+        }
+      });
+    }
+
+    const functionsCode = finalBodies.join('\n\n');
+
+    const updatedRulesState = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    ${functionsCode ? `${functionsCode}\n` : ''}
+${matchesCode}
+  }
+}
+`;
+    setRulesState(updatedRulesState);
+  }, [allRules, useCustomFunctions, selectedFunctions, generatedRules]);
+
+
+  console.log('allRules', allRules);
+  console.log('rulesState', rulesState);
+  console.log('generatedRules', generatedRules);
+  console.log('rulesExplanation', rulesExplanation)
+
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.header}>
-        <h1>Firestore Rules Builder</h1>
-      </div>
       <div className={styles.container}>
         <div className={styles.leftPanel}>
           {paths.length > 0 ? (
             <>
               <div className={styles.dropdownContainer}>
-                <select
-                  value={selectedPath}
-                  onChange={(e) => setSelectedPath(e.target.value)}
-                  className={styles.dropdown}
-                >
-                  {paths.map(path => (
-                    <option key={path} value={path}>
-                      {path}
-                    </option>
-                  ))}
-                </select>
-
+                <FormControl fullWidth variant="outlined" size="small" style={{ minWidth: 300 }}>
+                  <InputLabel id="path-select-label">Select Path/Collection</InputLabel>
+                  <Select
+                    labelId="path-select-label"
+                    value={selectedPath}
+                    onChange={(e) => setSelectedPath(e.target.value)}
+                    label="Select Path/Collection"
+                  >
+                    {paths.map(path => (
+                      <MenuItem key={path} value={path}>
+                        {path}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Tooltip title="Add a new collection">
+                  <IconButton
+                    color="primary"
+                    size="small"
+                    style={{ marginLeft: 8, height: '40px' }}
+                    onClick={() => setAddPathDialogOpen(true)}
+                  >
+                    <AddCircleOutlineOutlined />
+                  </IconButton>
+                </Tooltip>
+                <Dialog open={addPathDialogOpen} onClose={() => setAddPathDialogOpen(false)}>
+                  <DialogTitle>Add New Path/Collection to Firestore Rules</DialogTitle>
+                  <DialogContent>
+                    <TextField
+                      autoFocus
+                      margin="dense"
+                      label="Collection Name"
+                      type="text"
+                      fullWidth
+                      value={newCollectionName}
+                      onChange={(e) => setNewCollectionName(e.target.value)}
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Document Wildcard (e.g., {docId}*)"
+                      type="text"
+                      fullWidth
+                      value={newDocWildcard}
+                      onChange={(e) => setNewDocWildcard(e.target.value)}
+                      helperText="Add * for wildcard, e.g., {docId}*"
+                    />
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={() => setAddPathDialogOpen(false)} color="primary">
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddPath} color="primary">
+                      Add
+                    </Button>
+                  </DialogActions>
+                </Dialog>
               </div>
-
               <GuiView
                 mode="auth"
                 allowRules={allRules[selectedPath] || []}
@@ -252,21 +367,17 @@ export default function RulesPage() {
               <p>No valid rules parsed.</p>
               <p>Generate rules from your Firestore code on the <a href="/">Home</a> page.</p>
             </div>
-
           )}
         </div>
         <div className={styles.rightPanel}>
           <CodeView
-            rulesCode={codePreview}
+            rulesState={rulesState}
             selectedPath={selectedPath}
-            pastedRules={''}
-            setPastedRules={() => { }}
-            handlePasteRules={() => { }}
             error={''}
           />
-          {rulesExplanation && (
-            <Explanation explanation={rulesExplanation} />
-          )}
+          {rulesExplanation && <Explanation explanation={rulesExplanation} />}
+          <CustomFunctions />
+
         </div>
       </div>
     </div>

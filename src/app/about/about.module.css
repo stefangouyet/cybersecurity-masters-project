@@ -1,0 +1,26 @@
+.wrapper {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 1rem;
+    line-height: 1.6;
+    font-family: sans-serif;
+}
+
+.title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.paragraph {
+    margin-bottom: 1rem;
+}
+
+.list {
+    margin-top: 0.5rem;
+    padding-left: 1.5rem;
+}
+
+.signature {
+    margin-top: 2rem;
+    font-style: italic;
+}

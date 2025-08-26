@@ -6,15 +6,6 @@ body {
   padding: 0;
 }
 
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  padding: 1rem 2rem;
-  background-color: #000;
-  color: white;
-  font-weight: bold;
-}
-
 .main {
   padding: 2rem;
 }
@@ -54,4 +45,39 @@ body {
   white-space: pre;
   overflow-x: auto;
   margin-top: 1rem;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: #f7f7f7;
+  border-bottom: 1px solid #e0e0e0;
+  font-family: var(--font-geist-sans);
+}
+
+.nav-logo {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: blue;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav-links a.active {
+  color: black;
+}
+
+.nav-links a:hover {
+  color: #000;
 }

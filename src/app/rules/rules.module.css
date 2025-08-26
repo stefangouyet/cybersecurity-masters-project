@@ -2,8 +2,13 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 20px;
-    background-color: #f0f0f0;
+    padding: 0;
+    /* background-color: #f0f0f0; */
+}
+
+.dropdownContainer {
+    display: flex;
+    flex-direction: row;
 }
 
 .header {
@@ -34,7 +39,7 @@
 }
 
 .leftPanel {
-    flex: 1;
+    flex: 0 0 40%;
     padding: 20px;
     background-color: #fff;
     border-radius: 4px;
@@ -42,7 +47,7 @@
 }
 
 .rightPanel {
-    flex: 1;
+    flex: 0 0 52%;
     padding: 20px;
     background-color: #fff;
     border-radius: 4px;

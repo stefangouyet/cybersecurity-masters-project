@@ -1,13 +1,10 @@
 'use client';
-
-import styles from './GuiView.module.css';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import InputLabel from '@mui/material/InputLabel';
-import FormControl from '@mui/material/FormControl';
-import ListSubheader from '@mui/material/ListSubheader';
+import { TextField } from '@mui/material';
 import Checkbox from '@mui/material/Checkbox';
-import OutlinedInput from '@mui/material/OutlinedInput';
+import FormControl from '@mui/material/FormControl';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import styles from './GuiView.module.css';
 
 interface Rule {
   method: string | string[];
@@ -30,7 +27,7 @@ interface GuiViewProps {
   fieldTypes: Field[];
   addAllowRule: () => void;
   removeAllowRule: (i: number) => void;
-  updateAllowRule: (i: number, key: string, value: string) => void;
+  updateAllowRule: (i: number, key: string, value: string | string[]) => void;
   addFieldType: () => void;
   removeFieldType: (i: number) => void;
   updateFieldType: (i: number, key: string, value: string) => void;
@@ -40,10 +37,6 @@ interface GuiViewProps {
 
 const READ_METHODS = ['get', 'list'];
 const WRITE_METHODS = ['create', 'update', 'delete'];
-const GROUPS = [
-  { label: 'Read', methods: READ_METHODS },
-  { label: 'Write', methods: WRITE_METHODS },
-];
 
 export default function GuiView({
   mode,
@@ -58,20 +51,6 @@ export default function GuiView({
   functions,
   types,
 }: GuiViewProps) {
-  const getPathStyle = (collection: string | undefined, docId: string | undefined) => {
-    const fullPath = `/${collection || ''}/${docId || ''}`;
-    const option = collectionDocOptions.find(opt => opt.path === fullPath);
-    return option ? { backgroundColor: option.color } : {};
-  };
-
-  const collectionDocOptions = [
-    { path: '/users/{usersId}', color: '#e6f3ff' },
-    { path: '/users/{userId}/answers', color: '#ffe6e6' },
-    { path: '/members/{membersId}', color: '#e6ffe6' },
-    { path: '/families/{familiesId}', color: '#fff3e6' },
-    { path: '/chats/{chatsId}', color: '#f0e6ff' },
-  ];
-
   return (
     <div className={styles.guiSection}>
       {mode === 'auth' ? (
@@ -81,66 +60,62 @@ export default function GuiView({
             const selected = Array.isArray(rule.method) ? rule.method : rule.method ? [rule.method] : [];
 
             return (
-              <div key={i} className={styles.row} style={getPathStyle(String(rule.collection || ''), String(rule.docId || ''))}>
+              <div key={i} className={styles.row}
+              // style={getPathStyle(String(rule.collection || ''), String(rule.docId || ''))}
+              >
                 allow
-                <FormControl sx={{ minWidth: 180, marginRight: 1 }} size="small">
-                  <InputLabel id={`method-select-label-${i}`}>Method</InputLabel>
+                <FormControl sx={{ minWidth: 180, marginRight: .5 }} size="small">
                   <Select
-                    labelId={`method-select-label-${i}`}
                     multiple
                     value={Array.isArray(rule.method) ? rule.method : rule.method ? [rule.method] : []}
-                    onChange={e => {
-                      const value = e.target.value;
-                      updateAllowRule(i, 'method', value);
+                    onChange={(e) => {
+                      const val = typeof e.target.value === 'string'
+                        ? e.target.value.split(',')
+                        : (e.target.value as string[]);
+                      updateAllowRule(i, 'method', val);
                     }}
-                    renderValue={selected => {
-                      const selectedArr = Array.isArray(selected) ? selected : [selected];
-                      if (READ_METHODS.every(m => selectedArr.includes(m))) return 'read';
-                      if (WRITE_METHODS.every(m => selectedArr.includes(m))) return 'write';
-                      return selectedArr.join(', ');
+                    renderValue={(sel) => {
+                      const arr = Array.isArray(sel) ? sel as string[] : [sel as string];
+                      if (arr.length === 1 && arr[0] === 'read') return <span className={styles.readTag}>read</span>;
+                      if (arr.length === 1 && arr[0] === 'write') return <span className={styles.writeTag}>write</span>;
+                      return arr.join(', ');
                     }}
-
                   >
-                    <ListSubheader>Read</ListSubheader>
-                    {READ_METHODS.map(method => (
-                      <MenuItem key={method} value={method}>
-                        <Checkbox checked={selected.includes(method)} />
-                        {method}
-                      </MenuItem>
-                    ))}
-                    <ListSubheader>Write</ListSubheader>
-                    {WRITE_METHODS.map(method => (
-                      <MenuItem key={method} value={method}>
-                        <Checkbox checked={selected.includes(method)} />
-                        {method}
-                      </MenuItem>
-                    ))}
+                    {['read', ...READ_METHODS, 'write', ...WRITE_METHODS].map(method => {
+                      const selectedVals = Array.isArray(rule.method) ? rule.method : rule.method ? [rule.method] : [];
+                      return (
+                        <MenuItem key={method} value={method}>
+                          <Checkbox checked={selectedVals.includes(method)} />
+                          <span className={method === 'read' ? styles.readPill : method === 'write' ? styles.readPill : ''}>
+                            {method}
+                          </span>
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                 </FormControl>
-                : if
-                <select
-                  value={functions.some(fn => fn.name === rule.condition) ? rule.condition : 'custom'}
-                  onChange={(e) => {
-                    if (e.target.value === 'custom') return;
-                    updateAllowRule(i, 'condition', e.target.value);
-                  }}
-                  className={styles.select}
-                >
-                  {functions.map(fn => (
-                    <option key={fn.name} value={fn.name}>{fn.name}</option>
-                  ))}
-                  <option value="custom">Custom...</option>
-                </select>
-                {(!functions.some(fn => fn.name === rule.condition) || rule.condition === 'custom') && (
-                  <input
-                    type="text"
-                    value={rule.condition}
-                    onChange={e => updateAllowRule(i, 'condition', e.target.value)}
-                    placeholder="Enter custom condition"
-                    className={styles.input}
-                    style={{ marginLeft: 8, minWidth: 180 }}
-                  />
-                )}
+
+
+                {/* if */}
+                <span>if</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <div style={{ flex: 1 }}>
+                    <TextField
+                      value={rule.condition}
+                      onChange={(e) => updateAllowRule(i, 'condition', e.target.value)}
+                      fullWidth
+                      placeholder="Enter condition, e.g. request.auth.uid == resource.data.ownerId"
+                      multiline={true}
+                      minRows={1}
+                      maxRows={6}
+                      inputProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } }}
+                    />
+
+
+
+                  </div>
+                </div>
+
                 <button className={styles.delete} onClick={() => removeAllowRule(i)}>−</button>
               </div>
             );
@@ -151,7 +126,9 @@ export default function GuiView({
         <>
           <h3 className={styles.heading}>Field Types</h3>
           {fieldTypes.map((field, i) => (
-            <div key={i} className={styles.row} style={getPathStyle(field.collection, field.docId)}>
+            <div key={i} className={styles.row}
+            // style={getPathStyle(field.collection, field.docId)}
+            >
               <span className={styles.label}>Collection/Doc: /{field.collection}/{field.docId}</span>
               <input
                 value={field.field}

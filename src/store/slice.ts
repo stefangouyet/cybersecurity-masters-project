@@ -8,30 +8,28 @@ const initialState = {
     generatedRules: '',
     rulesExplanation: '',
   },
+  settings: {
+    useCustomFunctions: true, // Default to true
+    selectedFunctions: ['isAuthenticated', 'isDocOwner'] as string[], // Default selected functions
+  },
 };
 
 export const slice = createSlice({
   name: "map",
   initialState: initialState,
   reducers: {
-    getMapConfig: (state, action) => {
-      return { ...state, mapInfo: action.payload };
-    },
-    getUserInfo: (state, action) => {
-      return { ...state, userInfo: action.payload };
-    },
-    getFamilyInfo: (state, action) => {
-      return { ...state, family: action.payload };
-    },
-    getQuestions: (state, action) => {
-      return { ...state, questionsAnswers: action.payload };
-    },
     setRules: (state, action) => {
       return { ...state, rules: { ...state.rules, ...action.payload } };
+    },
+    setUseCustomFunctions: (state, action) => {
+      return { ...state, settings: { ...state.settings, useCustomFunctions: action.payload } };
+    },
+    setSelectedFunctions: (state, action) => {
+      return { ...state, settings: { ...state.settings, selectedFunctions: action.payload } };
     },
   },
 });
 
-export const { getMapConfig, getQuestions, getUserInfo, getFamilyInfo, setRules } = slice.actions;
+export const { setRules, setUseCustomFunctions, setSelectedFunctions } = slice.actions;
 
 export default slice.reducer;

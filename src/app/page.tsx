@@ -1,6 +1,7 @@
 'use client';
 
-import { setRules } from '@/store/slice';
+import { useAppSelector } from '@/store/hooks';
+import { setRules, setUseCustomFunctions } from '@/store/slice';
 import InfoIcon from '@mui/icons-material/Info';
 import { Checkbox, FormControlLabel, Tooltip } from '@mui/material';
 import { useRouter } from 'next/navigation';
@@ -14,36 +15,27 @@ export default function Home() {
   const [mode, setMode] = useState<'code' | 'rules' | 'text'>('code');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [granular, setGranular] = useState(false); // ✅ new state
-
-  console.log('granular', granular)
+  const [granular, setGranular] = useState(false);
+  const { useCustomFunctions } = useAppSelector(state => state.reducer.settings);
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
     setLoading(true);
 
     try {
-      let endpoint = '/api/generate-rules';
-      let body: any = { firestoreCode: input, granularOperations: granular };
-      if (mode === 'rules') endpoint = '/api/generate-from-rules';
-      if (mode === 'text') {
-        endpoint = '/api/generate-rules-from-text';
-        body = { description: input };
-      }
+      const endpoint = '/api/generate-firestore-rules';
+      const body = {
+        input,
+        mode,
+        granularOperations: granular,
+        useCustomFunctions
+      };
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-
-      //  const res = await fetch('/api/generate-rules', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ firestoreCode }),
-      // });
-
-      // const { rules, explanation } = await res.json();
 
       const { rules, explanation } = await response.json();
       dispatch(setRules({ generatedRules: rules, rulesExplanation: explanation || '' }));
@@ -57,9 +49,9 @@ export default function Home() {
 
   return (
     <main className={styles.wrapper}>
-      <h1 className={styles.title}>Firestore Rules Assistant</h1>
+      <h1 className={styles.title}>Firestore Rules Toolkit</h1>
       <p className={styles.subtitle}>
-        Choose an input method and generate Firestore rules with AI.
+        Choose an input method and generate Firestore rules with our tool.
       </p>
 
       <div className={styles.tabs}>
@@ -67,19 +59,19 @@ export default function Home() {
           className={`${styles.tabButton} ${mode === 'code' ? styles.activeTab : ''}`}
           onClick={() => setMode('code')}
         >
-          Paste Firestore Code
+          Analyze Firestore Code
         </button>
         <button
           className={`${styles.tabButton} ${mode === 'rules' ? styles.activeTab : ''}`}
           onClick={() => setMode('rules')}
         >
-          Paste Existing Rules
+          Analyze Existing Rules
         </button>
         <button
           className={`${styles.tabButton} ${mode === 'text' ? styles.activeTab : ''}`}
           onClick={() => setMode('text')}
         >
-          Describe Your Schema
+          Describe Your App/Schema
         </button>
       </div>
 
@@ -87,10 +79,10 @@ export default function Home() {
         className={styles.inputArea}
         placeholder={
           mode === 'code'
-            ? 'Paste your Firestore setDoc/getDoc code here...'
+            ? 'Paste your Firestore read/write code (setDoc/getDoc, get/set, etc) here...'
             : mode === 'rules'
-              ? 'Paste your Firebase security rules here...'
-              : 'Describe your app or schema in plain English...'
+              ? 'Paste your existing Firestore security rules here...'
+              : 'Describe your app or schema here...'
         }
         value={input}
         onChange={(e) => setInput(e.target.value)}
@@ -115,8 +107,46 @@ export default function Home() {
               </a>
             </span>
           }
+          componentsProps={{
+            tooltip: {
+              sx: {
+                fontSize: 13,
+                maxWidth: 300,
+                whiteSpace: 'normal',
+                padding: '10px 12px',
+                lineHeight: 1.4,
+              },
+            },
+          }}
         >
           <InfoIcon style={{ cursor: 'pointer' }} />
+        </Tooltip>
+      </div>
+      <div className={styles.checkboxContainer} style={{ display: 'flex', alignItems: 'center', marginTop: '1rem', marginBottom: '1rem' }}>
+        <FormControlLabel
+          control={<Checkbox checked={useCustomFunctions} onChange={(e) => dispatch(setUseCustomFunctions(e.target.checked))} />}
+          label="Use Custom Functions whenever possible"
+        />
+        <Tooltip
+          title={
+            <span>
+              Custom functions improve readability by abstracting logic like authentication checks. <br />
+              If unchecked, all conditions will be written inline instead of using <code>isAuthenticated()</code> or <code>isDocOwner(userId)</code>.
+            </span>
+          }
+          componentsProps={{
+            tooltip: {
+              sx: {
+                fontSize: 13,
+                maxWidth: 300,
+                whiteSpace: 'normal',
+                padding: '10px 12px',
+                lineHeight: 1.4,
+              },
+            },
+          }}
+        >
+          <InfoIcon style={{ cursor: 'pointer', marginLeft: 4 }} />
         </Tooltip>
       </div>
 

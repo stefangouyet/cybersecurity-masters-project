@@ -5,8 +5,6 @@ import slice from "./slice";
 export const makeStore = () => {
     return configureStore({
         reducer: {
-            // authReducer: authSlice,
-            // asyncReducer: asyncSlice,
             reducer: slice,
         },
         devTools: process.env.NODE_ENV !== "production",

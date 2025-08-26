@@ -23,7 +23,7 @@
   background: #e2e2e2;
 }
 
-.body {
+.content {
   padding: 12px;
   font-size: 0.92rem;
   line-height: 1.45;
@@ -31,4 +31,9 @@
   border-top: 1px solid #e6e6e6;
   border-radius: 0 0 8px 8px;
   white-space: pre-wrap;
+}
+
+.functionList {
+  margin-left: 1rem;
+  margin-top: 0.5rem;
 }
