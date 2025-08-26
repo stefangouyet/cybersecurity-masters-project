@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
-import styles from './explanation.module.css';
+import styles from './Explanation.module.css';
 
 interface ExplanationProps {
   explanation: string;
