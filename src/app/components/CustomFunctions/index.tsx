@@ -20,7 +20,7 @@ export default function CustomFunctions() {
       : selectedFunctions.filter(f => f !== func);
     dispatch(setSelectedFunctions(newSelectedFunctions));
   };
-
+ 
   const functionOptions = [
     { name: 'isAuthenticated', label: 'isAuthenticated() - Checks if user is authenticated' },
     { name: 'isDocOwner', label: 'isDocOwner(userId) - Checks if user owns the document' },
