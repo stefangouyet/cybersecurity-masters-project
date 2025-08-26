@@ -4,7 +4,7 @@ import Checkbox from '@mui/material/Checkbox';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
-import styles from './GuiView.module.css';
+import styles from './guiView.module.css';
 
 interface Rule {
   method: string | string[];

@@ -3,10 +3,10 @@ import { useAppSelector } from '@/store/hooks';
 import { AddCircleOutlineOutlined } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Tooltip } from '@mui/material';
 import { useEffect, useState } from 'react';
-import CodeView from '../components/CodeView';
-import CustomFunctions from '../components/CustomFunctions';
-import Explanation from '../components/Explanation';
-import GuiView from '../components/GuiView';
+import CodeView from '../components/codeView';
+import CustomFunctions from '../components/customFunctions';
+import Explanation from '../components/explanation';
+import GuiView from '../components/guiView';
 import styles from './rules.module.css';
 
 const functions = [
@@ -18,7 +18,7 @@ const types = ['string', 'number', 'boolean', 'timestamp', 'array', 'map'];
 export default function RulesPage() {
   const { generatedRules, rulesExplanation } = useAppSelector(state => state.reducer.rules);
   const { useCustomFunctions, selectedFunctions } = useAppSelector(state => state.reducer.settings);
-  
+
   const [allRules, setAllRules] = useState<Record<string, { method: string[]; condition: string }[]>>({});
   const [selectedPath, setSelectedPath] = useState('');
   const [paths, setPaths] = useState<string[]>([]);

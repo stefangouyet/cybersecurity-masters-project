@@ -4,7 +4,7 @@ import { setSelectedFunctions, setUseCustomFunctions } from '@/store/slice';
 import { Box, Checkbox, FormControlLabel, FormGroup, Typography } from '@mui/material';
 import { useState } from 'react';
 import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
-import styles from './CustomFunctions.module.css';
+import styles from './customFunctions.module.css';
 
 export default function CustomFunctions() {
   const dispatch = useAppDispatch();

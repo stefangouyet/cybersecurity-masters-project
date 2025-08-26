@@ -1,5 +1,5 @@
 'use client';
-import styles from './CodeView.module.css';
+import styles from './codeView.module.css';
 
 interface CodeViewProps {
   rulesState: string;
