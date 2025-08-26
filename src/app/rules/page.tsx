@@ -1,12 +1,12 @@
 'use client';
+import CodeView from '@/app/components/CodeView';
+import CustomFunctions from '@/app/components/CustomFunctions';
+import Explanation from '@/app/components/Explanation';
+import GuiView from '@/app/components/GuiView';
 import { useAppSelector } from '@/store/hooks';
 import { AddCircleOutlineOutlined } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Tooltip } from '@mui/material';
 import { useEffect, useState } from 'react';
-import CodeView from '../components/CodeView';
-import CustomFunctions from '../components/CustomFunctions';
-import Explanation from '../components/Explanation';
-import GuiView from '../components/GuiView';
 import styles from './rules.module.css';
 
 const functions = [
