@@ -81,19 +81,22 @@ export default function RulesPage() {
     }
     return tree;
   }
-  const generateRulesCode = (tree: any, indentLevel: number = 2): string => {
+  const generateRulesCode = (tree: any, indentLevel: number = 1): string => {
     let code = '';
-    const indent = '  '.repeat(indentLevel); // indent for match line
-    const ruleIndent = '  '.repeat(indentLevel + 1); // indent for rules inside match
+    const indent = '  '.repeat(indentLevel);
+    const ruleIndent = '  '.repeat(indentLevel + 1);
 
-    for (const segment in tree) {
+    const segments = Object.keys(tree);
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
       const node = tree[segment];
       const childSegments = Object.keys(node.__children);
+
       let matchLine = `${indent}match /${segment}`;
       let innerTree = node.__children;
       let rulesToAdd = node.__rules;
 
-      // Handle wildcards like {docId}
+      // fold single wildcard child into path
       if (childSegments.length === 1 && childSegments[0].startsWith('{')) {
         const wildcard = childSegments[0];
         matchLine += `/${wildcard}`;
@@ -104,22 +107,29 @@ export default function RulesPage() {
 
       code += `${matchLine} {\n`;
 
-      // Rules
       for (const rule of rulesToAdd) {
         const methods = rule.method.join(', ');
-        code += `${ruleIndent}allow ${methods}: if ${rule.condition};\n`;
+        const conditionInline = rule.condition.replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        code += `${ruleIndent}allow ${methods}: if ${conditionInline};\n`;
       }
 
-      // Recurse into children
       if (Object.keys(innerTree).length > 0) {
         code += generateRulesCode(innerTree, indentLevel + 1);
       }
 
+      // close block
       code += `${indent}}\n`;
+
+      // add a blank line *between* top-level siblings only
+      if (indentLevel === 1 && i < segments.length - 1) {
+        code += `\n`;
+      }
     }
 
     return code;
   };
+
+
 
   const updateAllowRule = (index: number, key: string, value: any) => {
     setAllRules(prev => {
@@ -151,25 +161,37 @@ export default function RulesPage() {
 
 
   const handleAddPath = () => {
-    if (newCollectionName && newDocWildcard) {
-      let formattedWildcard = newDocWildcard;
+    const collection = newCollectionName.trim();
+    const wildcard = newDocWildcard.trim();
+
+    if (!collection) return; // Require at least a collection name
+
+    let formattedWildcard = '';
+    if (wildcard) {
+      // Normalize to {docId}
+      formattedWildcard = wildcard;
       if (!formattedWildcard.startsWith('{') || !formattedWildcard.endsWith('}')) {
         formattedWildcard = `{${formattedWildcard.replace('*', 'docId').replace(/^{|}$/g, '')}}`;
       }
-      const newPath = `${newCollectionName}/${formattedWildcard}`;
-      if (!paths.includes(newPath)) {
-        setPaths([...paths, newPath]);
-        setSelectedPath(newPath);
-        setAllRules(prev => ({
-          ...prev,
-          [newPath]: [],
-        }));
-        setAddPathDialogOpen(false);
-        setNewCollectionName('');
-        setNewDocWildcard('');
-      }
     }
+
+    const newPath = formattedWildcard ? `${collection}/${formattedWildcard}` : collection;
+
+    if (!paths.includes(newPath)) {
+      setPaths(prev => [...prev, newPath]);
+      setSelectedPath(newPath);
+      setAllRules(prev => ({
+        ...prev,
+        [newPath]: [],
+      }));
+    }
+
+    // Reset dialog + fields
+    setAddPathDialogOpen(false);
+    setNewCollectionName('');
+    setNewDocWildcard('');
   };
+
 
 
   const TOGGLEABLE_FUNCTIONS = ['isAuthenticated', 'isDocOwner', 'isAdmin', 'isActiveUser'] as const;
@@ -178,15 +200,16 @@ export default function RulesPage() {
   function customFnSnippet(name: ToggleableFn) {
     switch (name) {
       case 'isAuthenticated':
-        return '    function isAuthenticated() {\n      return request.auth != null;\n    }';
+        return '  function isAuthenticated() {\n    return request.auth != null;\n  }';
       case 'isDocOwner':
-        return '    function isDocOwner(userId) {\n      return request.auth.uid == userId;\n    }';
+        return '  function isDocOwner(userId) {\n    return request.auth.uid == userId;\n  }';
       case 'isAdmin':
-        return '    function isAdmin() {\n      return request.auth.token.admin === true;\n    }';
+        return '  function isAdmin() {\n    return request.auth.token.admin === true;\n  }';
       case 'isActiveUser':
-        return '    function isActiveUser() {\n      return request.auth.token.active === true;\n    }';
+        return '  function isActiveUser() {\n    return request.auth.token.active === true;\n  }';
     }
   }
+
 
   // Use Effect #1
   useEffect(() => {
@@ -222,6 +245,7 @@ export default function RulesPage() {
 
 
   // Use Effect #2
+  // Use Effect #2
   useEffect(() => {
     if (Object.keys(allRules).length === 0) return;
 
@@ -244,36 +268,54 @@ export default function RulesPage() {
     const added = new Set<string>();
     for (const f of openAiFns) {
       if (!TOGGLEABLE_FUNCTIONS.includes(f.name as ToggleableFn)) {
-        finalBodies.push(f.body);
+        // If OpenAI gave a one-liner, expand to multi-line with 2-space inner indent
+        const normalized =
+          /\n/.test(f.body)
+            ? f.body
+            : f.body
+              .replace(/\{\s*return\s+/g, '{\n  return ')
+              .replace(/;\s*\}/g, ';\n}');
+        finalBodies.push(normalized);
         added.add(f.name);
       }
     }
+
 
     // Handle toggleable functions strictly by the toggle state
     if (useCustomFunctions) {
       (TOGGLEABLE_FUNCTIONS as readonly string[]).forEach((name) => {
         const selected = selectedFunctions?.includes(name);
-        if (!selected) return; // if toggled off, exclude even if OpenAI provided it
+        if (!selected) return;
 
-        // Prefer OpenAI's implementation if it exists; otherwise inject our snippet
-        const body = openAiByName.get(name) ?? customFnSnippet(name as ToggleableFn);
+        let body = openAiByName.get(name) ?? customFnSnippet(name as ToggleableFn);
         if (body && !added.has(name)) {
+          // Normalize to multi-line only if it was a one-liner
+          if (!/\n/.test(body)) {
+            body = body
+              .replace(/\{\s*return\s+/g, '{\n  return ')
+              .replace(/;\s*\}/g, ';\n}');
+          }
           finalBodies.push(body);
           added.add(name);
         }
       });
     }
 
+
     const functionsCode = finalBodies.join('\n\n');
+    // indent every line of function code so it sits correctly inside the documents block
+    const indentedFunctions = functionsCode
+      ? functionsCode.split('\n').map(line => '  ' + line).join('\n') + '\n'
+      : '';
 
     const updatedRulesState = `rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    ${functionsCode ? `${functionsCode}\n` : ''}
-${matchesCode}
+${indentedFunctions ? indentedFunctions + '\n' : ''}${matchesCode}
   }
 }
 `;
+
     setRulesState(updatedRulesState);
   }, [allRules, useCustomFunctions, selectedFunctions, generatedRules]);
 

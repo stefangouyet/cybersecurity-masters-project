@@ -49,7 +49,7 @@ export default function Home() {
 
   return (
     <main className={styles.wrapper}>
-      <h1 className={styles.title}>Firestore Rules Toolkit</h1>
+      <h1 className={styles.title}>Firestore Security Rules Toolkit</h1>
       <p className={styles.subtitle}>
         Choose an input method and generate Firestore rules with our tool.
       </p>

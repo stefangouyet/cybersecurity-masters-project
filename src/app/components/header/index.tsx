@@ -8,7 +8,7 @@ export default function Header() {
 
     return (
         <nav className="navbar">
-            <div className="nav-logo">Firestore Rules Toolkit</div>
+            <div className="nav-logo">Firestore Security Rules Toolkit</div>
             <div className="nav-links">
                 <Link href="/" className={pathname === '/' ? 'active' : ''}>Home</Link>
                 <Link href="/about" className={pathname === '/about' ? 'active' : ''}>About</Link>

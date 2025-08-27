@@ -4,7 +4,7 @@ import "./globals.css";
 import Header from "./components/header";
 
 export const metadata: Metadata = {
-  title: "Firestore Rules Toolkit",
+  title: "Firestore Security Rules Toolkit",
   description: "Created by Stefan Gouyet, University of Greenwich student",
 };
 
