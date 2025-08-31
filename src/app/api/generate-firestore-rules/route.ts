@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
-    
+
     if (!apiKey) {
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
     }
@@ -62,8 +62,7 @@ export async function POST(req: NextRequest) {
     const fullContent = data.choices?.[0]?.message?.content || '';
 
     const { rules, explanation } = extractRulesAndExplanation(fullContent);
-    const ensured = ensureCustomFunctions(rules, useCustomFunctions);
-    const rulesFinal = normalizeFunctionPlacement(ensured);
+    const rulesFinal = normalizeFunctionPlacement(rules);
 
     return NextResponse.json({ rules: rulesFinal, explanation });
 
@@ -75,50 +74,20 @@ export async function POST(req: NextRequest) {
 function extractRulesAndExplanation(content: string): { rules: string; explanation: string } {
   if (!content) return { rules: '', explanation: '' };
 
-  // Normalize newlines and strip CRs
   let src = content.replace(/\r/g, '');
+  src = src.replace(/```[a-zA-Z]*\s*\n?([\s\S]*?)```/g, (_, code) => code).trim();
 
-  // Remove ALL markdown code fences but keep their contents
-  // (works for ```lang ... ``` and plain ``` ... ```)
-  src = src.replace(/```[a-zA-Z]*\s*\n?([\s\S]*?)```/g, (_, code) => code);
-
-  // Trim once after fence removal
-  src = src.trim();
-
-  // Try the "rules_version first" path
+  // Find start of rules
   const rvIdx = src.indexOf("rules_version = '2';");
-
-  // Always look for the service block (many completions omit rules_version)
   const svcIdx = src.search(/service\s+cloud\.firestore\b/);
+  const startIdx = rvIdx !== -1 ? rvIdx : svcIdx;
 
-  // If we have neither, just return everything as explanation
-  if (svcIdx === -1 && rvIdx === -1) {
+  if (startIdx === -1) {
     return { rules: '', explanation: src };
   }
 
-  // Explanation is everything before the first of (rules_version | service cloud.firestore)
-  const firstIdx = [rvIdx, svcIdx].filter(i => i !== -1).sort((a, b) => a - b)[0];
-  const explanation = src.slice(0, firstIdx).trim();
-
-  // Find where the service block actually starts
-  const serviceStart = svcIdx !== -1 ? svcIdx : src.indexOf('service cloud.firestore', rvIdx);
-  if (serviceStart === -1) {
-    // Fallback: if we had rules_version but no service block, return from rules_version onward
-    if (rvIdx !== -1) {
-      return { rules: src.slice(rvIdx).trim(), explanation };
-    }
-    return { rules: '', explanation: src.trim() };
-  }
-
-  // Find the opening brace for the service block
-  const openIdx = src.indexOf('{', serviceStart);
-  if (openIdx === -1) {
-    // No brace — return from rules_version or service line onward
-    const start = rvIdx !== -1 ? rvIdx : serviceStart;
-    return { rules: src.slice(start).trim(), explanation };
-  }
-
-  // Walk braces to find the exact end of the service block
+  // Find end of the service block
+  const openIdx = src.indexOf('{', startIdx);
   let depth = 0;
   let endIdx = -1;
   for (let i = openIdx; i < src.length; i++) {
@@ -126,64 +95,36 @@ function extractRulesAndExplanation(content: string): { rules: string; explanati
     if (ch === '{') depth++;
     else if (ch === '}') {
       depth--;
-      if (depth === 0) { endIdx = i + 1; break; }
+      if (depth === 0) {
+        endIdx = i + 1;
+        break;
+      }
     }
   }
 
-  // Slice out the complete service block (include rules_version if present before it)
   let rulesSlice: string;
   if (endIdx !== -1) {
-    // Include optional rules_version header if it appears before serviceStart
-    const headerStart = (rvIdx !== -1 && rvIdx < serviceStart) ? rvIdx : serviceStart;
+    const headerStart = (rvIdx !== -1 && rvIdx < startIdx) ? rvIdx : startIdx;
     rulesSlice = src.slice(headerStart, endIdx).trim();
   } else {
-    // Unterminated braces — take everything from header/serviceStart onward
-    const start = (rvIdx !== -1 && rvIdx < serviceStart) ? rvIdx : serviceStart;
-    rulesSlice = src.slice(start).trim();
+    rulesSlice = src.slice(startIdx).trim();
   }
 
-  // Ensure rules_version exists; if missing, prepend it
   if (!/rules_version\s*=\s*'2';/.test(rulesSlice)) {
     rulesSlice = `rules_version = '2';\n${rulesSlice}`;
   }
 
-  // Final tidy: collapse excessive blank lines and trim trailing space
   rulesSlice = rulesSlice
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
+  // ✅ everything AFTER the rules is explanation
+  const explanation = endIdx !== -1 ? src.slice(endIdx).trim() : '';
+
   return { rules: rulesSlice, explanation };
 }
 
-
-
-function ensureCustomFunctions(rules: string, useCustomFunctions: boolean): string {
-  if (!useCustomFunctions || !rules) return rules;
-
-  const usesAuth = /\bisAuthenticated\s*\(/.test(rules);
-  const usesOwner = /\bisDocOwner\s*\(/.test(rules);
-
-  const hasAuthFn = /function\s+isAuthenticated\s*\(/.test(rules);
-  const hasOwnerFn = /function\s+isDocOwner\s*\(/.test(rules);
-
-  const fns: string[] = [];
-  if (usesAuth && !hasAuthFn) {
-    fns.push(`  function isAuthenticated() { return request.auth != null; }`);
-  }
-  if (usesOwner && !hasOwnerFn) {
-    fns.push(`  function isDocOwner(userId) { return request.auth.uid == userId; }`);
-  }
-
-  if (!fns.length) return rules;
-
-  // insert before the final closing brace of `service cloud.firestore { ... }`
-  const lastBrace = rules.lastIndexOf('}');
-  if (lastBrace === -1) {
-    return rules + '\n' + fns.join('\n') + '\n';
-  }
-  return rules.slice(0, lastBrace) + '\n' + fns.join('\n') + '\n' + rules.slice(lastBrace);
-}
 function normalizeFunctionPlacement(rules: string): string {
   if (!rules) return rules;
 

@@ -1,27 +1,29 @@
 .codeBlock {
-  padding: 10px;
+  padding: 10px 0;
 }
 
-
-/* New wrapper so the button can be absolutely positioned INSIDE the code block */
 .preWrap {
   position: relative;
 }
 
-/* Make room on the right so the button doesn't cover code */
 .pre {
-  background-color: #f4f4f4;
-  padding: 18px;
-  /* padding-right: 40px; */
-  border: 1px solid #ddd;
+  background-color: #f1f3f4;
+  padding: 20px 22px;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
   white-space: pre-wrap;
   overflow: auto;
   margin-bottom: 10px;
-  /* font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace; */
-  line-height: 1.5;
-  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.line {
+  letter-spacing: 0.1px;
 }
 
 .copyButton {
@@ -30,20 +32,26 @@
   right: 8px;
   z-index: 2;
   opacity: 0;
-  color: #666;
-  /* background: rgba(255, 255, 255, 0.92); */
-  border-radius: 4px;
-  padding: 4px;
-  transition: opacity 0.15s ease-in-out, color 0.15s ease-in-out;
+  background: rgba(241, 243, 244, 0.95);
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 2px 4px;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.copyBtn {
+  color: #6d4c41;
+  padding: 2px 6px;
+}
+
+.copyText {
+  margin-left: 6px;
+  font-size: 12px;
 }
 
 .preWrap:hover .copyButton,
-.copyButton:focus-visible {
+.copyButton:focus-within {
   opacity: 1;
-}
-
-.copyButton:hover {
-  color: #000;
 }
 
 .error {
@@ -53,6 +61,6 @@
 
 .highlight {
   background-color: #cce4ff;
-  font-weight: bold;
   color: #222;
+  font-weight: 600;
 }

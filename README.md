@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Firestore Rules Toolkit
+
+A prototype web-based toolkit for analyzing, generating, and visualizing Firebase Firestore security rules, developed as part of a Master’s dissertation for the MSc in Computer Forensics and Cyber Security at the University of Greenwich.
+
+## Project Title
+
+**A Toolkit for Testing and Generating Firestore Security Rules Using AI and Static Code Analysis**  
+University of Greenwich — MSc Dissertation  
+Author: Stefan Gouyet (Student ID: 001415471)  
+Supervisor: Dr. Sadiq Sani
+
+## Project Overview
+
+This project introduces an educational and practical tool for understanding and improving Firebase Firestore security rules.
+
+Key features:
+- **Static analysis** of `.rules` files with insecure pattern detection
+- **GPT-4 integration** for AI-assisted rule generation from code, natural language, or existing rules
+- **Dual-pane GUI editor** with live sync between code and visual rule tree
+- Emphasis on **secure defaults** and **least privilege**
+- Simulated role-based evaluation (unauthenticated/authenticated/admin)
+
+## Project Structure
+
+/app/ # Next.js pages for Input, Rules Editor, etc.
+/api/ # API routes for AI generation, parsing
+/components/ # Reusable components (input fields, editors, modals)
+/public/ # Static assets
+README.md
+package.json
+
+markdown
+
+## Technologies Used
+
+- [Next.js](https://nextjs.org/) — Frontend + API routing
+- [React](https://reactjs.org/) — UI components
+- [Redux](https://redux.js.org/) — Global state management
+- [OpenAI API (GPT-4)](https://platform.openai.com/) — Rule generation and explanation
+- [TypeScript](https://www.typescriptlang.org/) — Type safety
+- [CSS Modules] — Scoped styling
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js >= 18
+- OpenAI API Key (for GPT-4 access)
 
-```bash
-npm run dev
-# or
+### Installation
+git clone https://github.com/your-username/firestore-rules-toolkit.git
+cd firestore-rules-toolkit
+yarn
+
+### Development Server
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Navigate to http://localhost:3000 in your browser.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Environment Variables
+Create a .env.local file:
+env
+OPENAI_API_KEY=[insert_private_api_key_here]

@@ -31,12 +31,7 @@ interface GuiViewProps {
   addFieldType: () => void;
   removeFieldType: (i: number) => void;
   updateFieldType: (i: number, key: string, value: string) => void;
-  functions: { name: string; description: string }[];
-  types: string[];
 }
-
-const READ_METHODS = ['get', 'list'];
-const WRITE_METHODS = ['create', 'update', 'delete'];
 
 export default function GuiView({
   mode,
@@ -48,9 +43,14 @@ export default function GuiView({
   addFieldType,
   removeFieldType,
   updateFieldType,
-  functions,
-  types,
 }: GuiViewProps) {
+
+
+
+  const READ_METHODS = ['get', 'list'];
+  const WRITE_METHODS = ['create', 'update', 'delete'];
+  const types = ['string', 'number', 'boolean', 'timestamp', 'array', 'map'];
+
   return (
     <div className={styles.guiSection}>
       {mode === 'auth' ? (

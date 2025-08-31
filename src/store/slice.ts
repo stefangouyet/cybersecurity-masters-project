@@ -10,7 +10,7 @@ const initialState = {
   },
   settings: {
     useCustomFunctions: true, // Default to true
-    selectedFunctions: ['isAuthenticated', 'isDocOwner'] as string[], // Default selected functions
+    selectedFunctions: ['isAuthenticated'] as string[], // Default selected functions
   },
 };
 

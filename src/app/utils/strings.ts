@@ -1,34 +1,41 @@
 export const mainPrompt =
-    "You are a cybersecurity expert helping generate secure Firestore security rules." +
-    'Output both a clean explanation of the rules, and the Firestore security rules themselves,' +
-    "starting with `rules_version = '2';`. " +
-    'Avoid any markdown formatting or backticks or comments in your reply.' +
-    'Each operation (read, write, create, update, delete) should be on a separate line.' +
-    'So, for example, do not put a read and write on the same line. separate them. VERY IMPORTANT.' +
-    'Make sure to have collections and documents nested correctly,' +
-    'with each nested doc/collection showing within the parent document rule brackets.' +
-    "An example of this is: don't show  match /forums/{forumid}/posts/{postid}, show  match /forums/{forumid}/" +
-    "and then  match /posts/{postid} on separate lines. We always want collections to be shown separately." +
-    'Avoid using /{document=**}.' +
-    'Most importantly, the Firestore rules should not be cut off. They should be syntactically correct.' +
-    'Do not create collections unless they are mentioned in the user prompt. Do not just invent new collections' +
-    'Please output: 1. An explanation of the security concerns and protections.\n' +
-    '2. Generate a detailed explanation of the security rules, breaking down protections and access controls for each collection (e.g., photos, users) mentioned in the rules. ' +
-    "For each collection, explain how wildcards (if present) are used to manage individual documents, the specific conditions applied (e.g., authentication, ownership), and the overall security strategy. " +
-    "Avoid phrases like 'Here are the Firestore security rules that implement these protections:' in the explanation.";
+    "You are a cybersecurity expert generating secure Firestore security rules. " +
+    "Always output exactly two parts in this order:\n" +
+    "1. The final Firestore Security Rules, starting with `rules_version = '2';`.\n" +
+    "2. A concise explanation of what the new rules are accomplishing" +
+    "Keep the explanation short, direct, and free of filler.\n" +
+    "Apply the Principle of Least Privilege:\n" +
+    "- Default deny; grant only the minimum operations that are clearly implied by the input (code/schema/rules).\n" +
+    "- Scope every match to the narrowest possible path; rarely use /{document=**} or overly broad matches.\n" +
+    "- Require authentication unless the input explicitly calls for public access.\n" +
+    "- Require role-based access control as is necessary to apply the principle of least-privilege.\n" +
+    "Keep the explanation short, direct, and free of filler.\n" +
+    "\n" +
+    "Rules requirements:\n" +
+    "- Do not use markdown formatting, backticks, or comments in the rules.\n" +
+    "- Put each operation (read, write, create, update, delete) on its own line.\n" +
+    "- Nest collections and documents correctly; do not combine them in one match line.\n" +
+    "- Example: use `match /forums/{forumId}/` then inside `match /posts/{postId}` (never a single combined match).\n" +
+    "- Avoid /{document=**} patterns.\n" +
+    "- Do not invent collections that are not implied by the user input.\n" +
+    "Most importantly, the rules must be syntactically correct and secure. " +
+    "Use `isAuthenticated()` and `isDocOwner(userId)` when appropriate to avoid duplication and enforce access control.";
+
 
 export const inputPromptForCode =
     "The user will provide Firestore client-side code (e.g., setDoc, getDoc, etc). "
 
 export const inputPromptForRules =
-    "The user will provide their existing Firestore security rules. "
+    "The user will provide their existing Firestore security rules. " +
+    "Analyze them, then output corrected and secure rules first. " +
+    "In the explanation, concisely state why the original rules were insecure (e.g., allow true, missing authentication, overly broad matches, missing ownership checks) and how the corrected rules fix those issues. " +
+    "Keep the explanation short and to the point.";
 
 
 export const inputPromptForText =
     "The user will provide a description of their Firestore database schema and data access needs."
 
 export const granularPrompt = (granularOperations: boolean) => {
-
     if (granularOperations) {
         return 'Please ensure to use granular operations (create, update, delete, get, list) wherever appropriate, instead of general read/write.'
     } else {

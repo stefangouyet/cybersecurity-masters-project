@@ -16,13 +16,14 @@ export default function AboutPage() {
 
             <p className={styles.paragraph}>Features include:</p>
             <ul className={styles.list}>
-                <li>AI-generated security rules from Firestore code or plain English.</li>
-                <li>Visual editor for managing read/write conditions.</li>
-                <li>Support for granular operations and reusable custom functions.</li>
+                <li>AI-generated security rules using OpenAI API.</li>
+                <li>Least-privilege rule generation.</li>
+                <li>Visual editor to review and tighten conditions per collection/document.</li>
+                <li>Explanation of rules in plain English. </li>
             </ul>
 
             <p className={styles.paragraph}>
-                This work reflects my interest in cloud security and developer tooling. Thank you for using the tool.
+                This work reflects my interest in cloud and database security.
             </p>
 
             <p className={styles.signature}>

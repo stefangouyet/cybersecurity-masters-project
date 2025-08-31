@@ -1,5 +1,6 @@
 'use client';
-import { useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setSelectedFunctions } from '@/store/slice';
 import { AddCircleOutlineOutlined } from '@mui/icons-material';
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, IconButton, InputLabel, MenuItem, Select, TextField, Tooltip } from '@mui/material';
 import { useEffect, useState } from 'react';
@@ -9,13 +10,8 @@ import Explanation from '../components/explanation';
 import GuiView from '../components/guiView';
 import styles from './rules.module.css';
 
-const functions = [
-  { name: 'isOwner', description: 'Checks if the user ID matches the document owner ID.' },
-  { name: 'isAuthenticated', description: 'Checks if the user is authenticated.' },
-];
-const types = ['string', 'number', 'boolean', 'timestamp', 'array', 'map'];
-
 export default function RulesPage() {
+  const dispatch = useAppDispatch();
   const { generatedRules, rulesExplanation } = useAppSelector(state => state.reducer.rules);
   const { useCustomFunctions, selectedFunctions } = useAppSelector(state => state.reducer.settings);
 
@@ -62,7 +58,7 @@ export default function RulesPage() {
     return parsed;
   };
 
-  function buildNestedRuleTree(rulesObj: Record<string, { method: string[]; condition: string }[]>) {
+  const buildNestedRuleTree = (rulesObj: Record<string, { method: string[]; condition: string }[]>) => {
     const tree: any = {};
     for (const fullPath in rulesObj) {
       const relativePath = fullPath.replace(/^\/?databases\/\{database\}\/documents/, '').replace(/^\/+/, '');
@@ -81,10 +77,15 @@ export default function RulesPage() {
     }
     return tree;
   }
-  const generateRulesCode = (tree: any, indentLevel: number = 1): string => {
+
+  // 1) helper: right-trim only (no left trim)
+  const rtrim = (s: string) => s.replace(/[ \t\r\n]+$/, '');
+
+  // 2) generateRulesCode: start at indentLevel = 2 (one deeper than /documents)
+  const generateRulesCode = (tree: any, indentLevel: number = 2): string => {
     let code = '';
-    const indent = '  '.repeat(indentLevel);
-    const ruleIndent = '  '.repeat(indentLevel + 1);
+    const indent = '  '.repeat(indentLevel);        // indent for "match" line
+    const ruleIndent = '  '.repeat(indentLevel + 1); // indent for "allow" lines
 
     const segments = Object.keys(tree);
     for (let i = 0; i < segments.length; i++) {
@@ -96,7 +97,7 @@ export default function RulesPage() {
       let innerTree = node.__children;
       let rulesToAdd = node.__rules;
 
-      // fold single wildcard child into path
+      // fold single wildcard child into path for nicer output
       if (childSegments.length === 1 && childSegments[0].startsWith('{')) {
         const wildcard = childSegments[0];
         matchLine += `/${wildcard}`;
@@ -109,7 +110,10 @@ export default function RulesPage() {
 
       for (const rule of rulesToAdd) {
         const methods = rule.method.join(', ');
-        const conditionInline = rule.condition.replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+        const conditionInline = rule.condition
+          .replace(/\s*\n+\s*/g, ' ')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
         code += `${ruleIndent}allow ${methods}: if ${conditionInline};\n`;
       }
 
@@ -117,17 +121,13 @@ export default function RulesPage() {
         code += generateRulesCode(innerTree, indentLevel + 1);
       }
 
-      // close block
       code += `${indent}}\n`;
-
-      // add a blank line *between* top-level siblings only
-      if (indentLevel === 1 && i < segments.length - 1) {
-        code += `\n`;
-      }
+      if (i < segments.length - 1) code += `\n`; // blank line between siblings
     }
 
     return code;
   };
+
 
 
 
@@ -192,25 +192,6 @@ export default function RulesPage() {
     setNewDocWildcard('');
   };
 
-
-
-  const TOGGLEABLE_FUNCTIONS = ['isAuthenticated', 'isDocOwner', 'isAdmin', 'isActiveUser'] as const;
-  type ToggleableFn = typeof TOGGLEABLE_FUNCTIONS[number];
-
-  function customFnSnippet(name: ToggleableFn) {
-    switch (name) {
-      case 'isAuthenticated':
-        return '  function isAuthenticated() {\n    return request.auth != null;\n  }';
-      case 'isDocOwner':
-        return '  function isDocOwner(userId) {\n    return request.auth.uid == userId;\n  }';
-      case 'isAdmin':
-        return '  function isAdmin() {\n    return request.auth.token.admin === true;\n  }';
-      case 'isActiveUser':
-        return '  function isActiveUser() {\n    return request.auth.token.active === true;\n  }';
-    }
-  }
-
-
   // Use Effect #1
   useEffect(() => {
     if (generatedRules) {
@@ -241,55 +222,80 @@ export default function RulesPage() {
     }
   }, [generatedRules]);
 
-
-
-
-  // Use Effect #2
   // Use Effect #2
   useEffect(() => {
     if (Object.keys(allRules).length === 0) return;
 
     const tree = buildNestedRuleTree(allRules);
-    const matchesCode = generateRulesCode(tree).trim();
+    const matchesCode = rtrim(generateRulesCode(tree));
 
-    // —— Extract function definitions from the original OpenAI rules
+    // --- Detect which toggleable helpers are referenced in the rules text ---
+    const usedToggleables = new Set<string>();
+    const toggleableUseRe = /\b(isAuthenticated|isDocOwner|isAdmin|isActiveUser)\s*\(/g;
+    let tm: RegExpExecArray | null;
+    while ((tm = toggleableUseRe.exec(matchesCode)) !== null) {
+      usedToggleables.add(tm[1]);
+    }
+
+    // --- Ensure the UI reflects any functions required by the rules (union) ---
+    const unionSelected = Array.from(new Set([...(selectedFunctions || []), ...usedToggleables]));
+    const selectedChanged =
+      unionSelected.length !== (selectedFunctions || []).length ||
+      unionSelected.some(n => !(selectedFunctions || []).includes(n));
+    if (selectedChanged) {
+      dispatch(setSelectedFunctions(unionSelected));
+    }
+
+    // Names to actually include in the code view:
+    // - If custom functions are enabled, include the UNION of user selections and functions used in rules
+    // - If disabled, include none.
+    const namesToInclude = useCustomFunctions ? unionSelected : [];
+
+    // —— Extract ANY function definitions the model already emitted
     const fnRegex = /function\s+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{[\s\S]*?\}/g;
     const openAiFns: { name: string; body: string }[] = [];
     let m: RegExpExecArray | null;
     while ((m = fnRegex.exec(generatedRules)) !== null) {
       openAiFns.push({ name: m[1], body: m[0] });
     }
-
-    // Index by name for quick lookup
     const openAiByName = new Map(openAiFns.map(f => [f.name, f.body]));
 
-    // Always keep functions that are NOT toggleable (we never hide unknown helpers)
+    // Keep any non-toggleable helpers the model may have provided
     const finalBodies: string[] = [];
     const added = new Set<string>();
+    const TOGGLEABLE_FUNCTIONS = ['isAuthenticated', 'isDocOwner', 'isAdmin', 'isActiveUser'] as const;
+    type ToggleableFn = typeof TOGGLEABLE_FUNCTIONS[number];
+
     for (const f of openAiFns) {
       if (!TOGGLEABLE_FUNCTIONS.includes(f.name as ToggleableFn)) {
-        // If OpenAI gave a one-liner, expand to multi-line with 2-space inner indent
         const normalized =
           /\n/.test(f.body)
             ? f.body
-            : f.body
-              .replace(/\{\s*return\s+/g, '{\n  return ')
-              .replace(/;\s*\}/g, ';\n}');
+            : f.body.replace(/\{\s*return\s+/g, '{\n  return ').replace(/;\s*\}/g, ';\n}');
         finalBodies.push(normalized);
         added.add(f.name);
       }
     }
 
+    // Helper to synthesize definitions for toggleables if the model didn't emit them
+    const customFnSnippet = (name: ToggleableFn) => {
+      switch (name) {
+        case 'isAuthenticated':
+          return '  function isAuthenticated() {\n    return request.auth != null;\n  }';
+        case 'isDocOwner':
+          return '  function isDocOwner(userId) {\n    return request.auth.uid == userId;\n  }';
+        case 'isAdmin':
+          return '  function isAdmin() {\n    return request.auth.token.admin === true;\n  }';
+        case 'isActiveUser':
+          return '  function isActiveUser() {\n    return request.auth.token.active === true;\n  }';
+      }
+    }
 
-    // Handle toggleable functions strictly by the toggle state
+    // Include the toggleable helpers according to namesToInclude
     if (useCustomFunctions) {
-      (TOGGLEABLE_FUNCTIONS as readonly string[]).forEach((name) => {
-        const selected = selectedFunctions?.includes(name);
-        if (!selected) return;
-
+      namesToInclude.forEach((name) => {
         let body = openAiByName.get(name) ?? customFnSnippet(name as ToggleableFn);
         if (body && !added.has(name)) {
-          // Normalize to multi-line only if it was a one-liner
           if (!/\n/.test(body)) {
             body = body
               .replace(/\{\s*return\s+/g, '{\n  return ')
@@ -301,9 +307,8 @@ export default function RulesPage() {
       });
     }
 
-
+    // Indent functions so they sit inside the documents block
     const functionsCode = finalBodies.join('\n\n');
-    // indent every line of function code so it sits correctly inside the documents block
     const indentedFunctions = functionsCode
       ? functionsCode.split('\n').map(line => '  ' + line).join('\n') + '\n'
       : '';
@@ -317,14 +322,7 @@ ${indentedFunctions ? indentedFunctions + '\n' : ''}${matchesCode}
 `;
 
     setRulesState(updatedRulesState);
-  }, [allRules, useCustomFunctions, selectedFunctions, generatedRules]);
-
-
-  console.log('allRules', allRules);
-  console.log('rulesState', rulesState);
-  console.log('generatedRules', generatedRules);
-  console.log('rulesExplanation', rulesExplanation)
-
+  }, [allRules, useCustomFunctions, selectedFunctions, generatedRules, dispatch]);
 
   return (
     <div className={styles.wrapper}>
@@ -400,8 +398,6 @@ ${indentedFunctions ? indentedFunctions + '\n' : ''}${matchesCode}
                 addFieldType={() => { }}
                 removeFieldType={() => { }}
                 updateFieldType={() => { }}
-                functions={functions}
-                types={types}
               />
             </>
           ) : (
@@ -419,7 +415,6 @@ ${indentedFunctions ? indentedFunctions + '\n' : ''}${matchesCode}
           />
           {rulesExplanation && <Explanation explanation={rulesExplanation} />}
           <CustomFunctions />
-
         </div>
       </div>
     </div>

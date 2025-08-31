@@ -39,7 +39,6 @@ export default function CodeView({
                 aria-label="Copy rules"
                 size="small"
                 onClick={handleCopy}
-              // ✅ use CSS instead of inline
               >
                 <FaRegCopy fontSize="small" /> Copy
               </IconButton>
@@ -152,9 +151,7 @@ export default function CodeView({
   );
 }
 
-/** Get the path portion of a `match /... {` line, allowing wildcards. */
 const parseMatchSegments = (rawLine: string): string[] | null => {
-  // Find the *block* opening brace (the last '{' on the line)
   const brace = rawLine.lastIndexOf('{');
   if (brace === -1) return null;
   const before = rawLine.slice(0, brace);
@@ -167,7 +164,6 @@ const parseMatchSegments = (rawLine: string): string[] | null => {
   return path.split('/').filter(Boolean);
 }
 
-/** Normalize whole path (dropdown or extracted) to segments without braces. */
 const normalizePath = (path: string): string[] => {
   return path
     .replace(/^\/+|\/+$/g, '')
@@ -179,7 +175,6 @@ const normalizePath = (path: string): string[] => {
     .map(seg => seg.replace(/^{|}$/g, ''));
 }
 
-/** Normalize already-split segments (from match line). */
 const normalizeSegments = (segs: string[]): string[] => {
   return segs.map(s => s.replace(/^{|}$/g, ''));
 }
