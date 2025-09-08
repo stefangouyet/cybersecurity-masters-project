@@ -4,7 +4,7 @@ import Checkbox from '@mui/material/Checkbox';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
-import styles from './guiView.module.css';
+import styles from './ruleEditor.module.css';
 
 interface Rule {
   method: string | string[];
@@ -21,7 +21,7 @@ interface Field {
   type: string;
 }
 
-interface GuiViewProps {
+interface RuleEditorProps {
   mode: 'auth' | 'types';
   allowRules: Rule[];
   fieldTypes: Field[];
@@ -33,7 +33,7 @@ interface GuiViewProps {
   updateFieldType: (i: number, key: string, value: string) => void;
 }
 
-export default function GuiView({
+export default function RuleEditor({
   mode,
   allowRules,
   fieldTypes,
@@ -43,9 +43,7 @@ export default function GuiView({
   addFieldType,
   removeFieldType,
   updateFieldType,
-}: GuiViewProps) {
-
-
+}: RuleEditorProps) {
 
   const READ_METHODS = ['get', 'list'];
   const WRITE_METHODS = ['create', 'update', 'delete'];
@@ -61,7 +59,6 @@ export default function GuiView({
 
             return (
               <div key={i} className={styles.row}
-              // style={getPathStyle(String(rule.collection || ''), String(rule.docId || ''))}
               >
                 allow
                 <FormControl sx={{ minWidth: 180, marginRight: .5 }} size="small">
@@ -95,8 +92,6 @@ export default function GuiView({
                   </Select>
                 </FormControl>
 
-
-                {/* if */}
                 <span>if</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                   <div style={{ flex: 1 }}>
@@ -110,9 +105,6 @@ export default function GuiView({
                       maxRows={6}
                       inputProps={{ style: { whiteSpace: 'pre-wrap', wordBreak: 'break-word' } }}
                     />
-
-
-
                   </div>
                 </div>
 
@@ -127,7 +119,6 @@ export default function GuiView({
           <h3 className={styles.heading}>Field Types</h3>
           {fieldTypes.map((field, i) => (
             <div key={i} className={styles.row}
-            // style={getPathStyle(field.collection, field.docId)}
             >
               <span className={styles.label}>Collection/Doc: /{field.collection}/{field.docId}</span>
               <input

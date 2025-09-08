@@ -1,18 +1,18 @@
 import {
-  mainPrompt,
   customFunctionPrompt,
   granularPrompt,
   inputPromptForCode,
   inputPromptForRules,
-  inputPromptForText
+  inputPromptForText,
+  mainPrompt
 } from '@/app/utils/strings';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { input, mode, granularOperations = false, useCustomFunctions = true } = await req.json();
+    const { inputPrompt, mode, granularOperations = false, useCustomFunctions = true } = await req.json();
 
-    if (!input || typeof input !== 'string') {
+    if (!inputPrompt || typeof inputPrompt !== 'string') {
       return NextResponse.json({ error: 'Missing or invalid input' }, { status: 400 });
     }
 
@@ -22,15 +22,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'OpenAI API key not configured' }, { status: 500 });
     }
 
-    let systemPrompt = mainPrompt;
+    let developerPrompt = mainPrompt;
 
-    systemPrompt += ' ' + + ' ' + granularPrompt(granularOperations) + ' ' + customFunctionPrompt(useCustomFunctions);
+    developerPrompt += ' ' + + ' ' + granularPrompt(granularOperations) + ' ' + customFunctionPrompt(useCustomFunctions);
+
     if (mode === 'code') {
-      systemPrompt += inputPromptForCode
+      developerPrompt += inputPromptForCode
     } else if (mode === 'text') {
-      systemPrompt += inputPromptForText
+      developerPrompt += inputPromptForText
     } else if (mode === 'rules') {
-      systemPrompt += inputPromptForRules
+      developerPrompt += inputPromptForRules
     }
 
 
@@ -46,8 +47,8 @@ export async function POST(req: NextRequest) {
         seed: 7,
         top_p: 1,
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: input }
+          { role: 'developer', content: developerPrompt },
+          { role: 'user', content: inputPrompt }
         ]
       }),
     });
@@ -62,15 +63,15 @@ export async function POST(req: NextRequest) {
     const fullContent = data.choices?.[0]?.message?.content || '';
 
     const { rules, explanation } = extractRulesAndExplanation(fullContent);
-    const rulesFinal = normalizeFunctionPlacement(rules);
 
-    return NextResponse.json({ rules: rulesFinal, explanation });
+    return NextResponse.json({ rules: rules, explanation });
 
   } catch (err) {
     console.error('[API ERROR]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
 function extractRulesAndExplanation(content: string): { rules: string; explanation: string } {
   if (!content) return { rules: '', explanation: '' };
 
@@ -119,45 +120,8 @@ function extractRulesAndExplanation(content: string): { rules: string; explanati
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  // ✅ everything AFTER the rules is explanation
+  // everything after the rules is explanation
   const explanation = endIdx !== -1 ? src.slice(endIdx).trim() : '';
 
   return { rules: rulesSlice, explanation };
-}
-
-function normalizeFunctionPlacement(rules: string): string {
-  if (!rules) return rules;
-
-  const svcIdx = rules.indexOf('service cloud.firestore');
-  if (svcIdx === -1) return rules;
-
-  const openIdx = rules.indexOf('{', svcIdx);
-  if (openIdx === -1) return rules;
-
-  // find matching close brace for service block
-  let depth = 0, closeIdx = -1;
-  for (let i = openIdx; i < rules.length; i++) {
-    const ch = rules[i];
-    if (ch === '{') depth++;
-    else if (ch === '}') {
-      depth--;
-      if (depth === 0) { closeIdx = i; break; }
-    }
-  }
-  if (closeIdx === -1) return rules;
-
-  const head = rules.slice(0, openIdx + 1);
-  const body = rules.slice(openIdx + 1, closeIdx);
-  const tail = rules.slice(closeIdx); // includes the closing brace
-
-  // grab function blocks from body
-  const fnRe = /^\s*function\s+(isAuthenticated|isDocOwner)\s*\([^)]*\)\s*\{[\s\S]*?\}\s*$/gm;
-  const fns: string[] = [];
-  const bodyWithoutFns = body.replace(fnRe, (m) => { fns.push(m.trim()); return ''; });
-
-  const newBody =
-    bodyWithoutFns.trimEnd() +
-    (fns.length ? `\n\n${fns.join('\n')}\n` : '\n');
-
-  return head + newBody + tail;
 }

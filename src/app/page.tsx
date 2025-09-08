@@ -25,7 +25,7 @@ export default function Home() {
     try {
       const endpoint = '/api/generate-firestore-rules';
       const body = {
-        input,
+        inputPrompt: input,
         mode,
         granularOperations: granular,
         useCustomFunctions
@@ -71,7 +71,7 @@ export default function Home() {
           className={`${styles.tabButton} ${mode === 'text' ? styles.activeTab : ''}`}
           onClick={() => setMode('text')}
         >
-          Describe Your App/Schema
+          Describe Your App/Database
         </button>
       </div>
 
@@ -81,8 +81,8 @@ export default function Home() {
           mode === 'code'
             ? 'Paste your Firestore read/write code (setDoc/getDoc, get/set, etc) here...'
             : mode === 'rules'
-              ? 'Paste your existing Firestore security rules here...'
-              : 'Describe your app or schema here...'
+              ? 'Paste your existing Firestore security rules here (add any additional information about your database after the rules)...'
+              : 'Describe your app or database here...'
         }
         value={input}
         onChange={(e) => setInput(e.target.value)}

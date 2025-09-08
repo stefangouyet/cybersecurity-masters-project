@@ -10,7 +10,6 @@ export const mainPrompt =
     "- Require authentication unless the input explicitly calls for public access.\n" +
     "- Require role-based access control as is necessary to apply the principle of least-privilege.\n" +
     "Keep the explanation short, direct, and free of filler.\n" +
-    "\n" +
     "Rules requirements:\n" +
     "- Do not use markdown formatting, backticks, or comments in the rules.\n" +
     "- Put each operation (read, write, create, update, delete) on its own line.\n" +
@@ -18,17 +17,17 @@ export const mainPrompt =
     "- Example: use `match /forums/{forumId}/` then inside `match /posts/{postId}` (never a single combined match).\n" +
     "- Avoid /{document=**} patterns.\n" +
     "- Do not invent collections that are not implied by the user input.\n" +
-    "Most importantly, the rules must be syntactically correct and secure. " +
-    "Use `isAuthenticated()` and `isDocOwner(userId)` when appropriate to avoid duplication and enforce access control.";
+    "Most importantly, the rules must be syntactically correct and secure. "
 
 
 export const inputPromptForCode =
-    "The user will provide Firestore client-side code (e.g., setDoc, getDoc, etc). "
+    "The user will provide Firestore SDK code (e.g., setDoc, getDoc, etc) in any of the supported programming languages. "
 
 export const inputPromptForRules =
     "The user will provide their existing Firestore security rules. " +
     "Analyze them, then output corrected and secure rules first. " +
-    "In the explanation, concisely state why the original rules were insecure (e.g., allow true, missing authentication, overly broad matches, missing ownership checks) and how the corrected rules fix those issues. " +
+    "In the explanation, concisely state why the original rules were insecure " +
+    "(e.g., allow true, missing authentication, overly broad matches, missing ownership checks) and how the corrected rules fix those issues. " +
     "Keep the explanation short and to the point.";
 
 
@@ -37,7 +36,7 @@ export const inputPromptForText =
 
 export const granularPrompt = (granularOperations: boolean) => {
     if (granularOperations) {
-        return 'Please ensure to use granular operations (create, update, delete, get, list) wherever appropriate, instead of general read/write.'
+        return 'Please ONLY use granular operations (create, update, delete, get, list), instead of general read/write. Do not use read or write!'
     } else {
         return 'Please ONLY use READ and WRITE operations instead of granular operations like get/list or create/update/delete.';
     }
@@ -45,11 +44,14 @@ export const granularPrompt = (granularOperations: boolean) => {
 export const customFunctionPrompt = (useCustomFunctions: boolean) => {
     if (useCustomFunctions) {
         return (
-            'Use `isDocOwner(userId)` and `isAuthenticated()` as custom functions when referenced in conditions to avoid duplication. ' +
+            'If there is going to be duplicate code between conditions, please create a new function. Very important!' +
+            'The most common functions are:' +
+            '`isDocOwner(userId)` and `isAuthenticated()`' +
             'Definitions:\n' +
             'function isDocOwner(userId) { return request.auth.uid == userId; }\n' +
             'function isAuthenticated() { return request.auth != null; }\n' +
-            'If either function name is used in the rules, include its function definition within the `service cloud.firestore` block.'
+            'If either function name is used in the rules, include its function definition within the `service cloud.firestore` block.' +
+            'If you are going to name a function, please name it carefully, so that the function name explains its purpose.'
         );
     } else {
         return 'Do not use any custom functions (e.g., isAuthenticated, isDocOwner).';

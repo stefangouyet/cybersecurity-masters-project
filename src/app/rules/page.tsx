@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import CodeView from '../components/codeView';
 import CustomFunctions from '../components/custom';
 import Explanation from '../components/explanation';
-import GuiView from '../components/guiView';
+import RuleEditor from '../components/ruleEditor';
 import styles from './rules.module.css';
 
 export default function RulesPage() {
@@ -388,7 +388,7 @@ ${indentedFunctions ? indentedFunctions + '\n' : ''}${matchesCode}
                   </DialogActions>
                 </Dialog>
               </div>
-              <GuiView
+              <RuleEditor
                 mode="auth"
                 allowRules={allRules[selectedPath] || []}
                 fieldTypes={[]}
