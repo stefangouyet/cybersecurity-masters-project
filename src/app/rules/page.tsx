@@ -357,7 +357,7 @@ ${indentedFunctions ? indentedFunctions + '\n' : ''}${matchesCode}
                   </IconButton>
                 </Tooltip>
                 <Dialog open={addPathDialogOpen} onClose={() => setAddPathDialogOpen(false)}>
-                  <DialogTitle>Add New Path/Collection to Firestore Rules</DialogTitle>
+                  <DialogTitle>Add New Path/Collection to Firestore Security Rules</DialogTitle>
                   <DialogContent>
                     <TextField
                       autoFocus

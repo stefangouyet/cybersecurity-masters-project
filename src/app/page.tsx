@@ -51,7 +51,7 @@ export default function Home() {
     <main className={styles.wrapper}>
       <h1 className={styles.title}>Firestore Security Rules Toolkit</h1>
       <p className={styles.subtitle}>
-        Choose an input method and generate Firestore rules with our tool.
+        Choose an input method and generate Firestore security rules with our tool.
       </p>
 
       <div className={styles.tabs}>

@@ -10,7 +10,7 @@ Supervisor: Dr. Sadiq Sani
 
 ## Overview
 
-This project provides both an **educational platform** and a **practical toolkit** for exploring the design and security of Firestore rules.  
+This project provides both an **educational platform** and a **practical toolkit** for exploring the design and security of Firestore security rules.  
 It combines AI-driven rule generation with interactive validation, enabling developers to better understand and avoid common misconfigurations.
 
 ### Core Features
@@ -20,7 +20,7 @@ It combines AI-driven rule generation with interactive validation, enabling deve
   - Existing `.rules` files  
   - Plain-English text descriptions
 - **Dual-pane Rule Builder**  
-  Synchronizes a visual rule tree editor with the raw Firestore rules code view.
+  Synchronizes a visual rule tree editor with the raw Firestore security rules code view.
 - **Granular Operations Support**  
   Toggle between broad `read`/`write` rules and fine-grained `get`, `list`, `create`, `update`, `delete`.
 - **Custom Function Helpers**  
