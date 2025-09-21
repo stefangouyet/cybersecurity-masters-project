@@ -1,4 +1,4 @@
-# Firestore Rules Toolkit
+# Firestore Security Rules Toolkit
 
 A web-based toolkit for **designing, testing, and visualizing Firebase Firestore security rules**, created as part of an MSc dissertation in *Computer Forensics and Cyber Security* at the University of Greenwich.
 
