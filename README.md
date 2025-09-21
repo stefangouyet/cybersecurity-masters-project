@@ -4,8 +4,10 @@ A web-based toolkit for **designing, testing, and visualizing Firebase Firestore
 
 ## Project Title
 **A Toolkit for Designing Firestore Security Rules Using Generative AI and Interactive Rule Validation**  
-University of Greenwich — MSc Dissertation  
+University of Greenwich — Master's Project, Computer Forensics and Cyber Security  
+
 Author: Stefan Gouyet
+
 Supervisor: Dr. Sadiq Sani
 
 ## Overview
